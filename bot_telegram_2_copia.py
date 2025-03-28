@@ -1282,15 +1282,15 @@ def bot2_send_message(ignorar_anti_duplicacao=False):
         bot2_contador_sinais += 1
         BOT2_LOGGER.info(f"[{horario_atual}] Contador de sinais incrementado: {bot2_contador_sinais}")
         
-        # Agendar o envio do GIF pós-sinal para 2 minutos depois (reduzido de 5 minutos)
+        # IMPORTANTE: Sempre agendar o envio do GIF pós-sinal para TODOS os sinais (2 minutos depois)
         BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio do GIF pós-sinal para daqui a 2 minutos...")
         import threading
         timer_pos_sinal = threading.Timer(120.0, bot2_enviar_gif_pos_sinal)  # 120 segundos = 2 minutos
         timer_pos_sinal.start()
         
-        # Verifica se deve enviar a mensagem promocional especial (a cada 3 sinais)
+        # Verificar se deve enviar a mensagem promocional especial (a cada 3 sinais)
         if bot2_contador_sinais % 3 == 0:
-            # Agendar o envio do GIF especial para 3 minutos - 1 segundo depois
+            # Agendar o envio do GIF especial para 3 minutos - 1 segundo depois (após o GIF regular pós-sinal)
             BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio do GIF especial PT para daqui a {179} segundos...")
             timer_gif_especial = threading.Timer(179.0, bot2_enviar_gif_especial_pt)  # 179 segundos = 2 minutos e 59 segundos
             timer_gif_especial.start()
