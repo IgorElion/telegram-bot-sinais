@@ -820,7 +820,7 @@ XXBROKER_URL = "https://trade.xxbroker.com/register?aff=436564&aff_model=revenue
 VIDEO_TELEGRAM_URL = "https://t.me/trendingbrazil/215"
 
 # Diretórios para os vídeos
-VIDEOS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "videos")
+VIDEOS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "videos", "videos")
 os.makedirs(VIDEOS_DIR, exist_ok=True)
 
 # Subdiretórios para organizar os vídeos
