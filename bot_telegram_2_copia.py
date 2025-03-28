@@ -877,7 +877,7 @@ def bot2_enviar_gif_pos_sinal():
     
     try:
         horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
-        BOT2_LOGGER.info(f"[{horario_atual}] INICIANDO ENVIO DO VÍDEO PÓS-SINAL (1 minuto após o sinal)...")
+        BOT2_LOGGER.info(f"[{horario_atual}] INICIANDO ENVIO DO VÍDEO PÓS-SINAL...")
         
         # Incrementar os contadores
         contador_pos_sinal += 1
@@ -905,23 +905,32 @@ def bot2_enviar_gif_pos_sinal():
         else:
             BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO O VÍDEO PADRÃO (muito cedo para especial)")
         
+        # Verificar todos os possíveis caminhos para o vídeo (com e sem acento)
+        video_paths = [
+            VIDEOS_POS_SINAL["pt"][escolha_video],  # Caminho padrão
+            os.path.join(VIDEOS_POS_SINAL_PT_DIR, "padrao.mp4") if escolha_video == 0 else os.path.join(VIDEOS_POS_SINAL_PT_DIR, "especial.mp4"),  # Sem acento
+            os.path.join(VIDEOS_POS_SINAL_PT_DIR, "padrão.mp4") if escolha_video == 0 else os.path.join(VIDEOS_POS_SINAL_PT_DIR, "especial.mp4")   # Com acento
+        ]
+        
+        # Encontrar o primeiro caminho válido
+        video_path = None
+        for path in video_paths:
+            if os.path.exists(path):
+                video_path = path
+                BOT2_LOGGER.info(f"[{horario_atual}] Arquivo de vídeo encontrado: {video_path}")
+                break
+        
+        if not video_path:
+            BOT2_LOGGER.error(f"[{horario_atual}] ERRO: Nenhum arquivo de vídeo encontrado. Caminhos verificados: {video_paths}")
+            # Listar os arquivos na pasta para debug
+            pasta_videos = os.path.dirname(VIDEOS_POS_SINAL["pt"][0])
+            BOT2_LOGGER.info(f"[{horario_atual}] Arquivos na pasta {pasta_videos}: {os.listdir(pasta_videos) if os.path.exists(pasta_videos) else 'PASTA NÃO EXISTE'}")
+            pasta_raiz = os.path.join(os.path.dirname(os.path.abspath(__file__)), "videos")
+            BOT2_LOGGER.info(f"[{horario_atual}] Estrutura de pastas em videos/: {os.listdir(pasta_raiz) if os.path.exists(pasta_raiz) else 'PASTA NÃO EXISTE'}")
+            return
+        
         # Loop para enviar aos canais configurados
         for chat_id in BOT2_CHAT_IDS:
-            # Obter o caminho do vídeo escolhido
-            video_path = VIDEOS_POS_SINAL["pt"][escolha_video]
-                
-            BOT2_LOGGER.info(f"[{horario_atual}] Caminho do vídeo escolhido: {video_path}")
-            
-            # Verificar se o arquivo existe
-            if not os.path.exists(video_path):
-                BOT2_LOGGER.error(f"[{horario_atual}] ERRO: Arquivo de vídeo não encontrado: {video_path}")
-                # Listar os arquivos na pasta para debug
-                pasta_videos = os.path.dirname(video_path)
-                BOT2_LOGGER.info(f"[{horario_atual}] Arquivos na pasta {pasta_videos}: {os.listdir(pasta_videos) if os.path.exists(pasta_videos) else 'PASTA NÃO EXISTE'}")
-                continue
-            
-            BOT2_LOGGER.info(f"[{horario_atual}] Arquivo de vídeo encontrado: {video_path}")
-            
             # Enviar o vídeo escolhido
             BOT2_LOGGER.info(f"[{horario_atual}] Enviando vídeo para o canal {chat_id}...")
             url_base_video = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendVideo"
@@ -1130,10 +1139,40 @@ def bot2_enviar_gif_especial_pt():
             os.makedirs(VIDEOS_ESPECIAL_DIR, exist_ok=True)
             BOT2_LOGGER.info(f"[{horario_atual}] Criada pasta para GIFs especiais: {VIDEOS_ESPECIAL_DIR}")
         
-        # Verificar se o arquivo existe
-        if not os.path.exists(VIDEO_GIF_ESPECIAL_PT):
-            BOT2_LOGGER.error(f"[{horario_atual}] Arquivo de GIF especial não encontrado: {VIDEO_GIF_ESPECIAL_PT}")
-            BOT2_LOGGER.info(f"[{horario_atual}] Listando arquivos na pasta {VIDEOS_ESPECIAL_DIR}: {os.listdir(VIDEOS_ESPECIAL_DIR) if os.path.exists(VIDEOS_ESPECIAL_DIR) else 'PASTA NÃO EXISTE'}")
+        # Verificar vários possíveis caminhos para o arquivo
+        possiveis_caminhos = [
+            VIDEO_GIF_ESPECIAL_PT,  # Caminho padrão configurado
+            os.path.join(VIDEOS_ESPECIAL_DIR, "gif_especial_pt.mp4"),  # Caminho relativo
+            os.path.join(VIDEOS_ESPECIAL_DIR, "gif_especial.mp4"),  # Nome alternativo
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "videos", "especial", "gif_especial_pt.mp4"),  # Caminho absoluto
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "videos", "especial", "gif_especial.mp4")  # Caminho absoluto alternativo
+        ]
+        
+        # Encontrar o primeiro caminho válido
+        gif_path = None
+        for path in possiveis_caminhos:
+            if os.path.exists(path):
+                gif_path = path
+                BOT2_LOGGER.info(f"[{horario_atual}] Arquivo de GIF especial encontrado: {gif_path}")
+                break
+        
+        if not gif_path:
+            BOT2_LOGGER.error(f"[{horario_atual}] ERRO: Arquivo de GIF especial não encontrado. Caminhos verificados: {possiveis_caminhos}")
+            
+            # Listar diretórios para debug
+            BOT2_LOGGER.info(f"[{horario_atual}] Listando pastas no diretório principal:")
+            pasta_base = os.path.dirname(os.path.abspath(__file__))
+            BOT2_LOGGER.info(f"[{horario_atual}] Diretório base: {pasta_base}")
+            BOT2_LOGGER.info(f"[{horario_atual}] Conteúdo: {os.listdir(pasta_base) if os.path.exists(pasta_base) else 'PASTA NÃO EXISTE'}")
+            
+            videos_dir = os.path.join(pasta_base, "videos")
+            if os.path.exists(videos_dir):
+                BOT2_LOGGER.info(f"[{horario_atual}] Conteúdo da pasta videos: {os.listdir(videos_dir)}")
+                
+                especial_dir = os.path.join(videos_dir, "especial")
+                if os.path.exists(especial_dir):
+                    BOT2_LOGGER.info(f"[{horario_atual}] Conteúdo da pasta videos/especial: {os.listdir(especial_dir)}")
+            
             return
         
         # Enviar para todos os canais configurados
@@ -1142,7 +1181,7 @@ def bot2_enviar_gif_especial_pt():
             # Usar sendVideo em vez de sendAnimation para maior compatibilidade
             url_base_video = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendVideo"
             
-            with open(VIDEO_GIF_ESPECIAL_PT, 'rb') as gif_file:
+            with open(gif_path, 'rb') as gif_file:
                 files = {
                     'video': gif_file
                 }
@@ -1157,7 +1196,7 @@ def bot2_enviar_gif_especial_pt():
                     BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar GIF especial para o canal {chat_id}: {resposta_video.text}")
                     # Tentar método alternativo se o primeiro falhar
                     url_alt = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendAnimation"
-                    with open(VIDEO_GIF_ESPECIAL_PT, 'rb') as alt_file:
+                    with open(gif_path, 'rb') as alt_file:
                         files_alt = {'animation': alt_file}
                         resp_alt = requests.post(url_alt, data=payload_video, files=files_alt)
                         if resp_alt.status_code == 200:
