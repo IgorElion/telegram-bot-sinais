@@ -1229,36 +1229,37 @@ def bot2_send_message(ignorar_anti_duplicacao=False):
         bot2_contador_sinais += 1
         BOT2_LOGGER.info(f"[{horario_atual}] Contador de sinais incrementado: {bot2_contador_sinais}")
         
-        # Nova lógica de temporização conforme solicitado:
-        # Agendar vídeo pós-sinal para 5 minutos após o sinal
+        # Nova lógica de temporização otimizada para ciclo de 10 minutos:
         import threading
-        timer_pos_sinal = threading.Timer(300.0, bot2_enviar_gif_pos_sinal)  # 300 segundos = 5 minutos
+        
+        # Agendar vídeo pós-sinal para 3 minutos após o sinal (reduzido de 5 para 3 minutos)
+        timer_pos_sinal = threading.Timer(180.0, bot2_enviar_gif_pos_sinal)  # 180 segundos = 3 minutos
         timer_pos_sinal.start()
-        BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio do VÍDEO PÓS-SINAL para daqui a 5 minutos...")
+        BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio do VÍDEO PÓS-SINAL para daqui a 3 minutos...")
         
         # Verifica se é o terceiro sinal (divisível por 3) para iniciar a sequência especial
         if bot2_contador_sinais % 3 == 0:
             BOT2_LOGGER.info(f"[{horario_atual}] Este é o TERCEIRO SINAL da sequência (#{bot2_contador_sinais}). Agendando sequência especial...")
             
-            # GIF especial PT 30 segundos após o vídeo pós-sinal
-            timer_gif_especial = threading.Timer(330.0, bot2_enviar_gif_especial_pt)  # 300 + 30 = 330 segundos
+            # GIF especial PT 30 segundos após o vídeo pós-sinal (3:30 minutos após o sinal)
+            timer_gif_especial = threading.Timer(210.0, bot2_enviar_gif_especial_pt)  # 180 + 30 = 210 segundos
             timer_gif_especial.start()
-            BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio do GIF ESPECIAL PT para 5:30 minutos após o sinal...")
+            BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio do GIF ESPECIAL PT para 3:30 minutos após o sinal...")
             
-            # Mensagem promocional especial 3 segundos após o GIF
-            timer_promo_especial = threading.Timer(333.0, bot2_enviar_promo_especial)  # 330 + 3 = 333 segundos
+            # Mensagem promocional especial 3 segundos após o GIF (3:33 minutos após o sinal)
+            timer_promo_especial = threading.Timer(213.0, bot2_enviar_promo_especial)  # 210 + 3 = 213 segundos
             timer_promo_especial.start()
-            BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio da MENSAGEM PROMOCIONAL ESPECIAL para 5:33 minutos após o sinal...")
+            BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio da MENSAGEM PROMOCIONAL ESPECIAL para 3:33 minutos após o sinal...")
             
-            # Vídeo pré-sinal 5 minutos após a mensagem promocional
-            timer_video_pre_sinal = threading.Timer(633.0, lambda: bot2_enviar_video_pre_sinal())  # 333 + 300 = 633 segundos
+            # Vídeo pré-sinal 2 minutos após a mensagem promocional (5:33 minutos após o sinal)
+            timer_video_pre_sinal = threading.Timer(333.0, lambda: bot2_enviar_video_pre_sinal())  # 213 + 120 = 333 segundos
             timer_video_pre_sinal.start()
-            BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio do VÍDEO PRÉ-SINAL para 10:33 minutos após o sinal...")
+            BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio do VÍDEO PRÉ-SINAL para 5:33 minutos após o sinal...")
             
-            # Mensagem pré-sinal 3 segundos após o vídeo
-            timer_msg_pre_sinal = threading.Timer(636.0, lambda: bot2_enviar_mensagem_pre_sinal())  # 633 + 3 = 636 segundos
+            # Mensagem pré-sinal 3 segundos após o vídeo (5:36 minutos após o sinal)
+            timer_msg_pre_sinal = threading.Timer(336.0, lambda: bot2_enviar_mensagem_pre_sinal())  # 333 + 3 = 336 segundos
             timer_msg_pre_sinal.start()
-            BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio da MENSAGEM PRÉ-SINAL para 10:36 minutos após o sinal...")
+            BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio da MENSAGEM PRÉ-SINAL para 5:36 minutos após o sinal...")
             
     except Exception as e:
         horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
@@ -1368,11 +1369,10 @@ def bot2_schedule_messages():
 
         BOT2_LOGGER.info("Iniciando agendamento de mensagens para o Bot 2")
 
-        # Agendar envio de sinais a cada x3 e x7 minutos da hora (13, 17, 33, 37, 53, 57)
-        # Seguindo o padrão solicitado: 10:13, 10:37, 10:53, 11:13, etc.
+        # Agendar envio de sinais a cada 10 minutos (00, 10, 20, 30, 40, 50)
         for hora in range(24):
-            # Primeiro conjunto: x3 de cada hora
-            for minuto in [13, 33, 53]:
+            # Minutos 00, 10, 20, 30, 40, 50
+            for minuto in [0, 10, 20, 30, 40, 50]:
                 # Agendar o sinal principal
                 schedule.every().day.at(f"{hora:02d}:{minuto:02d}:02").do(bot2_send_message)
                 
@@ -1382,8 +1382,7 @@ def bot2_schedule_messages():
         bot2_schedule_messages.scheduled = True
 
         BOT2_LOGGER.info("Agendamento de mensagens do Bot 2 concluído com sucesso")
-        BOT2_LOGGER.info("Sinais agendados com o novo padrão de temporização.")
-        BOT2_LOGGER.info("Horários dos sinais: XX:13, XX:33, XX:53")
+        BOT2_LOGGER.info("Sinais agendados a cada 10 minutos: XX:00, XX:10, XX:20, XX:30, XX:40, XX:50")
 
     except Exception as e:
         BOT2_LOGGER.error(f"Erro ao agendar mensagens do Bot 2: {str(e)}")
@@ -1410,15 +1409,15 @@ def bot2_testar_envio_promocional():
 # Função para testar toda a sequência de sinais imediatamente
 def bot2_testar_sequencia_completa():
     """
-    Função para testar toda a sequência de sinais conforme a nova temporização:
+    Função para testar toda a sequência de sinais conforme a nova temporização para ciclo de 10min:
     1. Sinal
-    2. Vídeo pós-sinal (5 minutos depois)
-    3. GIF especial PT (5:30 minutos após o sinal)
-    4. Mensagem promocional especial (5:33 minutos após o sinal)
-    5. Vídeo pré-sinal (10:33 minutos após o sinal)
-    6. Mensagem pré-sinal (10:36 minutos após o sinal)
+    2. Vídeo pós-sinal (3 minutos depois)
+    3. GIF especial PT (3:30 minutos após o sinal)
+    4. Mensagem promocional especial (3:33 minutos após o sinal)
+    5. Vídeo pré-sinal (5:33 minutos após o sinal)
+    6. Mensagem pré-sinal (5:36 minutos após o sinal)
     """
-    BOT2_LOGGER.info("TESTE COMPLETO: Iniciando teste da sequência completa (nova temporização)...")
+    BOT2_LOGGER.info("TESTE COMPLETO: Iniciando teste da sequência completa (nova temporização para ciclo de 10min)...")
     
     # Ajuste os tempos para teste (acelerados para facilitar o teste)
     # Em um teste real, os tempos seriam muito longos para esperar
@@ -1438,23 +1437,23 @@ def bot2_testar_sequencia_completa():
     # Etapa 1: Enviar o sinal
     executar_etapa(1, lambda: bot2_send_message(ignorar_anti_duplicacao=True), 0)
     
-    # Etapa 2: Enviar vídeo pós-sinal após 5 minutos (acelerado)
-    executar_etapa(2, lambda: bot2_enviar_gif_pos_sinal(), 300)
+    # Etapa 2: Enviar vídeo pós-sinal após 3 minutos (acelerado)
+    executar_etapa(2, lambda: bot2_enviar_gif_pos_sinal(), 180)
     
-    # Etapa 3: Enviar GIF especial PT após 5:30 minutos (acelerado)
-    executar_etapa(3, lambda: bot2_enviar_gif_especial_pt(), 330)
+    # Etapa 3: Enviar GIF especial PT após 3:30 minutos (acelerado)
+    executar_etapa(3, lambda: bot2_enviar_gif_especial_pt(), 210)
     
-    # Etapa 4: Enviar mensagem promocional especial após 5:33 minutos (acelerado)
-    executar_etapa(4, lambda: bot2_enviar_promo_especial(), 333)
+    # Etapa 4: Enviar mensagem promocional especial após 3:33 minutos (acelerado)
+    executar_etapa(4, lambda: bot2_enviar_promo_especial(), 213)
     
-    # Etapa 5: Enviar vídeo pré-sinal após 10:33 minutos (acelerado)
-    executar_etapa(5, lambda: bot2_enviar_video_pre_sinal(), 633)
+    # Etapa 5: Enviar vídeo pré-sinal após 5:33 minutos (acelerado)
+    executar_etapa(5, lambda: bot2_enviar_video_pre_sinal(), 333)
     
-    # Etapa 6: Enviar mensagem pré-sinal após 10:36 minutos (acelerado)
-    executar_etapa(6, lambda: bot2_enviar_mensagem_pre_sinal(), 636)
+    # Etapa 6: Enviar mensagem pré-sinal após 5:36 minutos (acelerado)
+    executar_etapa(6, lambda: bot2_enviar_mensagem_pre_sinal(), 336)
     
     BOT2_LOGGER.info(f"TESTE COMPLETO: Sequência de teste agendada com sucesso! (Aceleração: {tempo_aceleracao:.1f}x)")
-    BOT2_LOGGER.info(f"TESTE COMPLETO: A sequência completa levará aproximadamente {636 * tempo_aceleracao:.1f} segundos.")
+    BOT2_LOGGER.info(f"TESTE COMPLETO: A sequência completa levará aproximadamente {336 * tempo_aceleracao:.1f} segundos.")
     
     # Força o contador de sinais para simular o terceiro sinal
     global bot2_contador_sinais
