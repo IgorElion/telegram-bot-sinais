@@ -844,7 +844,7 @@ os.makedirs(VIDEOS_ESPECIAL_PT_DIR, exist_ok=True)
 # Configurar vídeos apenas para português 
 VIDEOS_POS_SINAL = {
     "pt": [
-        os.path.join(VIDEOS_POS_SINAL_PT_DIR, "padrao.mp4"),  # Vídeo padrão em português (9/10)
+        os.path.join(VIDEOS_POS_SINAL_PT_DIR, "padrão.mp4"),  # Vídeo padrão em português (9/10)
         os.path.join(VIDEOS_POS_SINAL_PT_DIR, "especial.mp4")  # Vídeo especial em português (1/10)
     ]
 }
@@ -877,7 +877,7 @@ def bot2_enviar_gif_pos_sinal():
     
     try:
         horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
-        BOT2_LOGGER.info(f"[{horario_atual}] INICIANDO ENVIO DO VÍDEO PÓS-SINAL...")
+        BOT2_LOGGER.info(f"[{horario_atual}] INICIANDO ENVIO DO VÍDEO PÓS-SINAL (1 minuto após o sinal)...")
         
         # Incrementar os contadores
         contador_pos_sinal += 1
@@ -905,32 +905,23 @@ def bot2_enviar_gif_pos_sinal():
         else:
             BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO O VÍDEO PADRÃO (muito cedo para especial)")
         
-        # Verificar todos os possíveis caminhos para o vídeo (com e sem acento)
-        video_paths = [
-            VIDEOS_POS_SINAL["pt"][escolha_video],  # Caminho padrão
-            os.path.join(VIDEOS_POS_SINAL_PT_DIR, "padrao.mp4") if escolha_video == 0 else os.path.join(VIDEOS_POS_SINAL_PT_DIR, "especial.mp4"),  # Sem acento
-            os.path.join(VIDEOS_POS_SINAL_PT_DIR, "padrão.mp4") if escolha_video == 0 else os.path.join(VIDEOS_POS_SINAL_PT_DIR, "especial.mp4")   # Com acento
-        ]
-        
-        # Encontrar o primeiro caminho válido
-        video_path = None
-        for path in video_paths:
-            if os.path.exists(path):
-                video_path = path
-                BOT2_LOGGER.info(f"[{horario_atual}] Arquivo de vídeo encontrado: {video_path}")
-                break
-        
-        if not video_path:
-            BOT2_LOGGER.error(f"[{horario_atual}] ERRO: Nenhum arquivo de vídeo encontrado. Caminhos verificados: {video_paths}")
-            # Listar os arquivos na pasta para debug
-            pasta_videos = os.path.dirname(VIDEOS_POS_SINAL["pt"][0])
-            BOT2_LOGGER.info(f"[{horario_atual}] Arquivos na pasta {pasta_videos}: {os.listdir(pasta_videos) if os.path.exists(pasta_videos) else 'PASTA NÃO EXISTE'}")
-            pasta_raiz = os.path.join(os.path.dirname(os.path.abspath(__file__)), "videos")
-            BOT2_LOGGER.info(f"[{horario_atual}] Estrutura de pastas em videos/: {os.listdir(pasta_raiz) if os.path.exists(pasta_raiz) else 'PASTA NÃO EXISTE'}")
-            return
-        
         # Loop para enviar aos canais configurados
         for chat_id in BOT2_CHAT_IDS:
+            # Obter o caminho do vídeo escolhido
+            video_path = VIDEOS_POS_SINAL["pt"][escolha_video]
+                
+            BOT2_LOGGER.info(f"[{horario_atual}] Caminho do vídeo escolhido: {video_path}")
+            
+            # Verificar se o arquivo existe
+            if not os.path.exists(video_path):
+                BOT2_LOGGER.error(f"[{horario_atual}] ERRO: Arquivo de vídeo não encontrado: {video_path}")
+                # Listar os arquivos na pasta para debug
+                pasta_videos = os.path.dirname(video_path)
+                BOT2_LOGGER.info(f"[{horario_atual}] Arquivos na pasta {pasta_videos}: {os.listdir(pasta_videos) if os.path.exists(pasta_videos) else 'PASTA NÃO EXISTE'}")
+                continue
+            
+            BOT2_LOGGER.info(f"[{horario_atual}] Arquivo de vídeo encontrado: {video_path}")
+            
             # Enviar o vídeo escolhido
             BOT2_LOGGER.info(f"[{horario_atual}] Enviando vídeo para o canal {chat_id}...")
             url_base_video = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendVideo"
@@ -966,72 +957,19 @@ def bot2_enviar_gif_pos_sinal():
 # Função para enviar mensagem promocional antes do sinal
 def bot2_enviar_promo_pre_sinal():
     """
-    Envia uma mensagem promocional 10 minutos antes de cada sinal com vídeo.
+    Envia uma mensagem promocional antes de cada sinal com vídeo.
+    Esta função não é mais utilizada diretamente - foi dividida em bot2_enviar_video_pre_sinal e bot2_enviar_mensagem_pre_sinal.
+    Mantida por compatibilidade.
     """
     try:
         horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
-        BOT2_LOGGER.info(f"[{horario_atual}] INICIANDO ENVIO DA MENSAGEM PROMOCIONAL PRÉ-SINAL...")
+        BOT2_LOGGER.info(f"[{horario_atual}] ATENÇÃO: A função bot2_enviar_promo_pre_sinal está obsoleta. Use as funções separadas.")
         
-        # Loop para enviar aos canais configurados
-        for chat_id in BOT2_CHAT_IDS:
-            # Pegar configuração do canal
-            config_canal = BOT2_CANAIS_CONFIG[chat_id]
-            link_corretora = config_canal["link_corretora"]
-            
-            # Preparar texto com o link específico para cada canal
-            texto_mensagem = (
-                "👉🏼Abram a corretora Pessoal\n\n"
-                "⚠️FIQUEM ATENTOS⚠️\n\n"
-                "🔥Cadastre-se na XXBROKER agora mesmo🔥\n\n"
-                f"➡️ <a href=\"{link_corretora}\">CLICANDO AQUI</a>"
-            )
-            
-            # Obter caminho do vídeo
-            video_path = VIDEOS_PROMO.get("pt")
-            
-            # Verificar se o arquivo existe
-            if not os.path.exists(video_path):
-                BOT2_LOGGER.error(f"[{horario_atual}] Arquivo de vídeo promocional não encontrado: {video_path}")
-            else:
-                BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO VÍDEO PROMOCIONAL PRÉ-SINAL para o canal {chat_id}...")
-                # Enviar vídeo
-                url_base_video = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendVideo"
-                
-                with open(video_path, 'rb') as video_file:
-                    files = {
-                        'video': video_file
-                    }
-                    
-                    payload_video = {
-                        'chat_id': chat_id,
-                        'parse_mode': 'HTML'
-                    }
-                    
-                    resposta_video = requests.post(url_base_video, data=payload_video, files=files)
-                    if resposta_video.status_code != 200:
-                        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo promocional para o canal {chat_id}: {resposta_video.text}")
-                    else:
-                        BOT2_LOGGER.info(f"[{horario_atual}] VÍDEO PROMOCIONAL PRÉ-SINAL ENVIADO COM SUCESSO para o canal {chat_id}")
-            
-            # Adicionar delay de 2 segundos antes de enviar a mensagem de texto
-            time.sleep(2)
-            
-            # Enviar mensagem com link (agora incorporado diretamente no texto, não como botão)
-            BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO MENSAGEM PROMOCIONAL PRÉ-SINAL para o canal {chat_id}...")
-            url_base_msg = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendMessage"
-            
-            payload_msg = {
-                'chat_id': chat_id,
-                'text': texto_mensagem,
-                'parse_mode': 'HTML',
-                'disable_web_page_preview': True
-            }
-            
-            resposta_msg = requests.post(url_base_msg, data=payload_msg)
-            if resposta_msg.status_code != 200:
-                BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar mensagem promocional para o canal {chat_id}: {resposta_msg.text}")
-            else:
-                BOT2_LOGGER.info(f"[{horario_atual}] MENSAGEM PROMOCIONAL PRÉ-SINAL ENVIADA COM SUCESSO para o canal {chat_id}")
+        # Chama as novas funções separadas
+        bot2_enviar_video_pre_sinal()
+        # Adiciona um pequeno delay para simular o comportamento anterior
+        time.sleep(3)
+        bot2_enviar_mensagem_pre_sinal()
     
     except Exception as e:
         horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
@@ -1139,40 +1077,10 @@ def bot2_enviar_gif_especial_pt():
             os.makedirs(VIDEOS_ESPECIAL_DIR, exist_ok=True)
             BOT2_LOGGER.info(f"[{horario_atual}] Criada pasta para GIFs especiais: {VIDEOS_ESPECIAL_DIR}")
         
-        # Verificar vários possíveis caminhos para o arquivo
-        possiveis_caminhos = [
-            VIDEO_GIF_ESPECIAL_PT,  # Caminho padrão configurado
-            os.path.join(VIDEOS_ESPECIAL_DIR, "gif_especial_pt.mp4"),  # Caminho relativo
-            os.path.join(VIDEOS_ESPECIAL_DIR, "gif_especial.mp4"),  # Nome alternativo
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "videos", "especial", "gif_especial_pt.mp4"),  # Caminho absoluto
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "videos", "especial", "gif_especial.mp4")  # Caminho absoluto alternativo
-        ]
-        
-        # Encontrar o primeiro caminho válido
-        gif_path = None
-        for path in possiveis_caminhos:
-            if os.path.exists(path):
-                gif_path = path
-                BOT2_LOGGER.info(f"[{horario_atual}] Arquivo de GIF especial encontrado: {gif_path}")
-                break
-        
-        if not gif_path:
-            BOT2_LOGGER.error(f"[{horario_atual}] ERRO: Arquivo de GIF especial não encontrado. Caminhos verificados: {possiveis_caminhos}")
-            
-            # Listar diretórios para debug
-            BOT2_LOGGER.info(f"[{horario_atual}] Listando pastas no diretório principal:")
-            pasta_base = os.path.dirname(os.path.abspath(__file__))
-            BOT2_LOGGER.info(f"[{horario_atual}] Diretório base: {pasta_base}")
-            BOT2_LOGGER.info(f"[{horario_atual}] Conteúdo: {os.listdir(pasta_base) if os.path.exists(pasta_base) else 'PASTA NÃO EXISTE'}")
-            
-            videos_dir = os.path.join(pasta_base, "videos")
-            if os.path.exists(videos_dir):
-                BOT2_LOGGER.info(f"[{horario_atual}] Conteúdo da pasta videos: {os.listdir(videos_dir)}")
-                
-                especial_dir = os.path.join(videos_dir, "especial")
-                if os.path.exists(especial_dir):
-                    BOT2_LOGGER.info(f"[{horario_atual}] Conteúdo da pasta videos/especial: {os.listdir(especial_dir)}")
-            
+        # Verificar se o arquivo existe
+        if not os.path.exists(VIDEO_GIF_ESPECIAL_PT):
+            BOT2_LOGGER.error(f"[{horario_atual}] Arquivo de GIF especial não encontrado: {VIDEO_GIF_ESPECIAL_PT}")
+            BOT2_LOGGER.info(f"[{horario_atual}] Listando arquivos na pasta {VIDEOS_ESPECIAL_DIR}: {os.listdir(VIDEOS_ESPECIAL_DIR) if os.path.exists(VIDEOS_ESPECIAL_DIR) else 'PASTA NÃO EXISTE'}")
             return
         
         # Enviar para todos os canais configurados
@@ -1181,7 +1089,7 @@ def bot2_enviar_gif_especial_pt():
             # Usar sendVideo em vez de sendAnimation para maior compatibilidade
             url_base_video = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendVideo"
             
-            with open(gif_path, 'rb') as gif_file:
+            with open(VIDEO_GIF_ESPECIAL_PT, 'rb') as gif_file:
                 files = {
                     'video': gif_file
                 }
@@ -1196,7 +1104,7 @@ def bot2_enviar_gif_especial_pt():
                     BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar GIF especial para o canal {chat_id}: {resposta_video.text}")
                     # Tentar método alternativo se o primeiro falhar
                     url_alt = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendAnimation"
-                    with open(gif_path, 'rb') as alt_file:
+                    with open(VIDEO_GIF_ESPECIAL_PT, 'rb') as alt_file:
                         files_alt = {'animation': alt_file}
                         resp_alt = requests.post(url_alt, data=payload_video, files=files_alt)
                         if resp_alt.status_code == 200:
@@ -1321,27 +1229,129 @@ def bot2_send_message(ignorar_anti_duplicacao=False):
         bot2_contador_sinais += 1
         BOT2_LOGGER.info(f"[{horario_atual}] Contador de sinais incrementado: {bot2_contador_sinais}")
         
-        # IMPORTANTE: Sempre agendar o envio do GIF pós-sinal para TODOS os sinais (2 minutos depois)
-        BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio do GIF pós-sinal para daqui a 2 minutos...")
+        # Nova lógica de temporização conforme solicitado:
+        # Agendar vídeo pós-sinal para 5 minutos após o sinal
         import threading
-        timer_pos_sinal = threading.Timer(120.0, bot2_enviar_gif_pos_sinal)  # 120 segundos = 2 minutos
+        timer_pos_sinal = threading.Timer(300.0, bot2_enviar_gif_pos_sinal)  # 300 segundos = 5 minutos
         timer_pos_sinal.start()
+        BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio do VÍDEO PÓS-SINAL para daqui a 5 minutos...")
         
-        # Verificar se deve enviar a mensagem promocional especial (a cada 3 sinais)
+        # Verifica se é o terceiro sinal (divisível por 3) para iniciar a sequência especial
         if bot2_contador_sinais % 3 == 0:
-            # Agendar o envio do GIF especial para 3 minutos - 1 segundo depois (após o GIF regular pós-sinal)
-            BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio do GIF especial PT para daqui a {179} segundos...")
-            timer_gif_especial = threading.Timer(179.0, bot2_enviar_gif_especial_pt)  # 179 segundos = 2 minutos e 59 segundos
-            timer_gif_especial.start()
+            BOT2_LOGGER.info(f"[{horario_atual}] Este é o TERCEIRO SINAL da sequência (#{bot2_contador_sinais}). Agendando sequência especial...")
             
-            # Agendar o envio da mensagem promocional especial para 3 minutos depois
-            BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio da mensagem promocional especial para daqui a 3 minutos (sinal #{bot2_contador_sinais}, divisível por 3)...")
-            timer_promo_especial = threading.Timer(180.0, bot2_enviar_promo_especial)  # 180 segundos = 3 minutos
+            # GIF especial PT 30 segundos após o vídeo pós-sinal
+            timer_gif_especial = threading.Timer(330.0, bot2_enviar_gif_especial_pt)  # 300 + 30 = 330 segundos
+            timer_gif_especial.start()
+            BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio do GIF ESPECIAL PT para 5:30 minutos após o sinal...")
+            
+            # Mensagem promocional especial 3 segundos após o GIF
+            timer_promo_especial = threading.Timer(333.0, bot2_enviar_promo_especial)  # 330 + 3 = 333 segundos
             timer_promo_especial.start()
-
+            BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio da MENSAGEM PROMOCIONAL ESPECIAL para 5:33 minutos após o sinal...")
+            
+            # Vídeo pré-sinal 5 minutos após a mensagem promocional
+            timer_video_pre_sinal = threading.Timer(633.0, lambda: bot2_enviar_video_pre_sinal())  # 333 + 300 = 633 segundos
+            timer_video_pre_sinal.start()
+            BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio do VÍDEO PRÉ-SINAL para 10:33 minutos após o sinal...")
+            
+            # Mensagem pré-sinal 3 segundos após o vídeo
+            timer_msg_pre_sinal = threading.Timer(636.0, lambda: bot2_enviar_mensagem_pre_sinal())  # 633 + 3 = 636 segundos
+            timer_msg_pre_sinal.start()
+            BOT2_LOGGER.info(f"[{horario_atual}] Agendando envio da MENSAGEM PRÉ-SINAL para 10:36 minutos após o sinal...")
+            
     except Exception as e:
         horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
         BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar mensagem: {str(e)}")
+        traceback.print_exc()
+
+# Função auxiliar para enviar apenas o vídeo pré-sinal
+def bot2_enviar_video_pre_sinal():
+    """
+    Envia apenas o vídeo promocional pré-sinal.
+    """
+    try:
+        horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
+        BOT2_LOGGER.info(f"[{horario_atual}] INICIANDO ENVIO DO VÍDEO PRÉ-SINAL...")
+        
+        # Loop para enviar aos canais configurados
+        for chat_id in BOT2_CHAT_IDS:
+            # Obter caminho do vídeo
+            video_path = VIDEOS_PROMO.get("pt")
+            
+            # Verificar se o arquivo existe
+            if not os.path.exists(video_path):
+                BOT2_LOGGER.error(f"[{horario_atual}] Arquivo de vídeo promocional não encontrado: {video_path}")
+                continue
+                
+            BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO VÍDEO PROMOCIONAL PRÉ-SINAL para o canal {chat_id}...")
+            # Enviar vídeo
+            url_base_video = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendVideo"
+            
+            with open(video_path, 'rb') as video_file:
+                files = {
+                    'video': video_file
+                }
+                
+                payload_video = {
+                    'chat_id': chat_id,
+                    'parse_mode': 'HTML'
+                }
+                
+                resposta_video = requests.post(url_base_video, data=payload_video, files=files)
+                if resposta_video.status_code != 200:
+                    BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo promocional para o canal {chat_id}: {resposta_video.text}")
+                else:
+                    BOT2_LOGGER.info(f"[{horario_atual}] VÍDEO PROMOCIONAL PRÉ-SINAL ENVIADO COM SUCESSO para o canal {chat_id}")
+    
+    except Exception as e:
+        horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
+        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo pré-sinal: {str(e)}")
+        traceback.print_exc()
+
+# Função auxiliar para enviar apenas a mensagem pré-sinal
+def bot2_enviar_mensagem_pre_sinal():
+    """
+    Envia apenas a mensagem promocional pré-sinal.
+    """
+    try:
+        horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
+        BOT2_LOGGER.info(f"[{horario_atual}] INICIANDO ENVIO DA MENSAGEM PRÉ-SINAL...")
+        
+        # Loop para enviar aos canais configurados
+        for chat_id in BOT2_CHAT_IDS:
+            # Pegar configuração do canal
+            config_canal = BOT2_CANAIS_CONFIG[chat_id]
+            link_corretora = config_canal["link_corretora"]
+            
+            # Preparar texto com o link específico para cada canal
+            texto_mensagem = (
+                "👉🏼Abram a corretora Pessoal\n\n"
+                "⚠️FIQUEM ATENTOS⚠️\n\n"
+                "🔥Cadastre-se na XXBROKER agora mesmo🔥\n\n"
+                f"➡️ <a href=\"{link_corretora}\">CLICANDO AQUI</a>"
+            )
+            
+            # Enviar mensagem com link (agora incorporado diretamente no texto, não como botão)
+            BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO MENSAGEM PROMOCIONAL PRÉ-SINAL para o canal {chat_id}...")
+            url_base_msg = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendMessage"
+            
+            payload_msg = {
+                'chat_id': chat_id,
+                'text': texto_mensagem,
+                'parse_mode': 'HTML',
+                'disable_web_page_preview': True
+            }
+            
+            resposta_msg = requests.post(url_base_msg, data=payload_msg)
+            if resposta_msg.status_code != 200:
+                BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar mensagem promocional para o canal {chat_id}: {resposta_msg.text}")
+            else:
+                BOT2_LOGGER.info(f"[{horario_atual}] MENSAGEM PROMOCIONAL PRÉ-SINAL ENVIADA COM SUCESSO para o canal {chat_id}")
+    
+    except Exception as e:
+        horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
+        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar mensagem pré-sinal: {str(e)}")
         traceback.print_exc()
 
 # Inicializações para a função send_message
@@ -1358,25 +1368,22 @@ def bot2_schedule_messages():
 
         BOT2_LOGGER.info("Iniciando agendamento de mensagens para o Bot 2")
 
-        # Agendar envio de sinais a cada 10 minutos
+        # Agendar envio de sinais a cada x3 e x7 minutos da hora (13, 17, 33, 37, 53, 57)
+        # Seguindo o padrão solicitado: 10:13, 10:37, 10:53, 11:13, etc.
         for hora in range(24):
-            # Minutos 00, 10, 20, 30, 40, 50
-            for minuto in [0, 10, 20, 30, 40, 50]:
-                # Promo 3 minutos antes do sinal
-                promo_minuto = (minuto - 3) % 60
-                promo_hora = hora
-                if minuto < 3:
-                    promo_hora = (hora - 1) % 24
-                
-                schedule.every().day.at(f"{promo_hora:02d}:{promo_minuto:02d}:02").do(bot2_enviar_promo_pre_sinal)
+            # Primeiro conjunto: x3 de cada hora
+            for minuto in [13, 33, 53]:
+                # Agendar o sinal principal
                 schedule.every().day.at(f"{hora:02d}:{minuto:02d}:02").do(bot2_send_message)
+                
+                BOT2_LOGGER.info(f"Sinal agendado para {hora:02d}:{minuto:02d}:02")
 
         # Marcar como agendado
         bot2_schedule_messages.scheduled = True
 
         BOT2_LOGGER.info("Agendamento de mensagens do Bot 2 concluído com sucesso")
-        BOT2_LOGGER.info("Sinais agendados a cada 10 minutos: XX:00, XX:10, XX:20, XX:30, XX:40, XX:50")
-        BOT2_LOGGER.info("Promos pré-sinal: 3 minutos antes de cada sinal")
+        BOT2_LOGGER.info("Sinais agendados com o novo padrão de temporização.")
+        BOT2_LOGGER.info("Horários dos sinais: XX:13, XX:33, XX:53")
 
     except Exception as e:
         BOT2_LOGGER.error(f"Erro ao agendar mensagens do Bot 2: {str(e)}")
@@ -1403,33 +1410,55 @@ def bot2_testar_envio_promocional():
 # Função para testar toda a sequência de sinais imediatamente
 def bot2_testar_sequencia_completa():
     """
-    Função para testar toda a sequência de sinais imediatamente:
-    1. Vídeo/mensagem pré-sinal
-    2. Sinal
-    3. Vídeo pós-sinal
+    Função para testar toda a sequência de sinais conforme a nova temporização:
+    1. Sinal
+    2. Vídeo pós-sinal (5 minutos depois)
+    3. GIF especial PT (5:30 minutos após o sinal)
+    4. Mensagem promocional especial (5:33 minutos após o sinal)
+    5. Vídeo pré-sinal (10:33 minutos após o sinal)
+    6. Mensagem pré-sinal (10:36 minutos após o sinal)
     """
-    BOT2_LOGGER.info("TESTE COMPLETO: Iniciando teste da sequência completa...")
+    BOT2_LOGGER.info("TESTE COMPLETO: Iniciando teste da sequência completa (nova temporização)...")
+    
+    # Ajuste os tempos para teste (acelerados para facilitar o teste)
+    # Em um teste real, os tempos seriam muito longos para esperar
+    tempo_aceleracao = 0.1  # Fator de aceleração (0.1 = 10x mais rápido)
     
     # Função para executar cada etapa da sequência
     def executar_etapa(etapa, func, delay_segundos=0):
-        BOT2_LOGGER.info(f"TESTE COMPLETO: Etapa {etapa} será executada em {delay_segundos} segundos...")
+        delay_ajustado = delay_segundos * tempo_aceleracao
+        BOT2_LOGGER.info(f"TESTE COMPLETO: Etapa {etapa} será executada em {delay_ajustado:.1f} segundos (original: {delay_segundos}s)...")
         if delay_segundos > 0:
             import threading
-            timer = threading.Timer(delay_segundos, func)
+            timer = threading.Timer(delay_ajustado, func)
             timer.start()
         else:
             func()
     
-    # Etapa 1: Enviar vídeo e mensagem pré-sinal
-    executar_etapa(1, lambda: bot2_enviar_promo_pre_sinal(), 0)
+    # Etapa 1: Enviar o sinal
+    executar_etapa(1, lambda: bot2_send_message(ignorar_anti_duplicacao=True), 0)
     
-    # Etapa 2: Enviar sinal 5 segundos depois
-    executar_etapa(2, lambda: bot2_send_message(ignorar_anti_duplicacao=True), 5)
+    # Etapa 2: Enviar vídeo pós-sinal após 5 minutos (acelerado)
+    executar_etapa(2, lambda: bot2_enviar_gif_pos_sinal(), 300)
     
-    # Etapa 3: Enviar vídeo pós-sinal diretamente após 10 segundos (sem esperar 1 minuto)
-    executar_etapa(3, lambda: bot2_enviar_gif_pos_sinal(), 10)
+    # Etapa 3: Enviar GIF especial PT após 5:30 minutos (acelerado)
+    executar_etapa(3, lambda: bot2_enviar_gif_especial_pt(), 330)
     
-    BOT2_LOGGER.info("TESTE COMPLETO: Sequência de teste agendada com sucesso!")
+    # Etapa 4: Enviar mensagem promocional especial após 5:33 minutos (acelerado)
+    executar_etapa(4, lambda: bot2_enviar_promo_especial(), 333)
+    
+    # Etapa 5: Enviar vídeo pré-sinal após 10:33 minutos (acelerado)
+    executar_etapa(5, lambda: bot2_enviar_video_pre_sinal(), 633)
+    
+    # Etapa 6: Enviar mensagem pré-sinal após 10:36 minutos (acelerado)
+    executar_etapa(6, lambda: bot2_enviar_mensagem_pre_sinal(), 636)
+    
+    BOT2_LOGGER.info(f"TESTE COMPLETO: Sequência de teste agendada com sucesso! (Aceleração: {tempo_aceleracao:.1f}x)")
+    BOT2_LOGGER.info(f"TESTE COMPLETO: A sequência completa levará aproximadamente {636 * tempo_aceleracao:.1f} segundos.")
+    
+    # Força o contador de sinais para simular o terceiro sinal
+    global bot2_contador_sinais
+    bot2_contador_sinais = 3
 
 # Modificar a função de inicialização para não executar a sequência de teste
 def iniciar_ambos_bots():
