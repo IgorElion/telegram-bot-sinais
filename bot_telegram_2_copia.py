@@ -844,7 +844,7 @@ os.makedirs(VIDEOS_ESPECIAL_PT_DIR, exist_ok=True)
 # Configurar vídeos apenas para português 
 VIDEOS_POS_SINAL = {
     "pt": [
-        os.path.join(VIDEOS_POS_SINAL_PT_DIR, "padrão.mp4"),  # Vídeo padrão em português (9/10)
+        os.path.join(VIDEOS_POS_SINAL_PT_DIR, "padrao.mp4"),  # Vídeo padrão em português (9/10)
         os.path.join(VIDEOS_POS_SINAL_PT_DIR, "especial.mp4")  # Vídeo especial em português (1/10)
     ]
 }
