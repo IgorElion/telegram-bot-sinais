@@ -1079,12 +1079,14 @@ def bot2_enviar_gif_especial_pt():
                         payload_alt = {
                             'chat_id': chat_id,
                             'parse_mode': 'HTML',
-                            'width': 217,
-                            'height': 85
+                            'width': 217,             # Tamanho renderizado - largura
+                            'height': 85,             # Tamanho renderizado - altura
+                            'media_width': 320,       # Tamanho intrínseco - largura
+                            'media_height': 126       # Tamanho intrínseco - altura
                         }
                         resp_alt = requests.post(url_alt, data=payload_alt, files=files_alt)
                         if resp_alt.status_code == 200:
-                            BOT2_LOGGER.info(f"[{horario_atual}] GIF ESPECIAL ENVIADO COM SUCESSO via método alternativo para o canal {chat_id}")
+                            BOT2_LOGGER.info(f"[{horario_atual}] GIF ESPECIAL ENVIADO COM SUCESSO via método alternativo para o canal {chat_id}, com dimensões: 217×85 (renderizado) e 320×126 (intrínseco)")
                         else:
                             BOT2_LOGGER.error(f"[{horario_atual}] Falha também no método alternativo: {resp_alt.text}")
                 except Exception as e:
@@ -1502,7 +1504,7 @@ if __name__ == "__main__":
 # Função auxiliar para enviar vídeos com tamanho padronizado
 def bot2_enviar_video_padronizado(video_path, chat_id, descricao="", horario_atual=None):
     """
-    Função auxiliar para enviar vídeos com o tamanho padronizado de 217x85.
+    Função auxiliar para enviar vídeos com o tamanho padronizado.
     
     Args:
         video_path (str): Caminho do arquivo de vídeo
@@ -1529,11 +1531,15 @@ def bot2_enviar_video_padronizado(video_path, chat_id, descricao="", horario_atu
                 'video': video_file
             }
             
+            # Usar o tamanho renderizado correto: 217 × 85 px
+            # E incluir metadados para tamanho intrínseco: 320 × 126 px
             payload_video = {
                 'chat_id': chat_id,
                 'parse_mode': 'HTML',
-                'width': 217,
-                'height': 85
+                'width': 217,         # Tamanho renderizado - largura
+                'height': 85,         # Tamanho renderizado - altura
+                'media_width': 320,   # Tamanho intrínseco - largura
+                'media_height': 126   # Tamanho intrínseco - altura
             }
             
             resposta_video = requests.post(url_base_video, data=payload_video, files=files)
@@ -1542,7 +1548,7 @@ def bot2_enviar_video_padronizado(video_path, chat_id, descricao="", horario_atu
                 BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo {descricao} para o canal {chat_id}: {resposta_video.text}")
                 return False
             else:
-                BOT2_LOGGER.info(f"[{horario_atual}] Vídeo {descricao} ENVIADO COM SUCESSO para o canal {chat_id}")
+                BOT2_LOGGER.info(f"[{horario_atual}] Vídeo {descricao} ENVIADO COM SUCESSO para o canal {chat_id}, com dimensões: 217×85 (renderizado) e 320×126 (intrínseco)")
                 return True
     
     except Exception as e:
