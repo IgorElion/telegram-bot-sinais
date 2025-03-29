@@ -866,7 +866,7 @@ VIDEO_GIF_ESPECIAL_PT = os.path.join(VIDEOS_ESPECIAL_PT_DIR, "especial.mp4")
 contador_pos_sinal = 0
 contador_desde_ultimo_especial = 0
 
-# Função para enviar GIF pós-sinal (1 minuto após cada sinal)
+# Função para enviar GIF pós-sinal
 def bot2_enviar_gif_pos_sinal():
     """
     Envia um vídeo 1 minuto após cada sinal.
@@ -909,52 +909,22 @@ def bot2_enviar_gif_pos_sinal():
         for chat_id in BOT2_CHAT_IDS:
             # Obter o caminho do vídeo escolhido
             video_path = VIDEOS_POS_SINAL["pt"][escolha_video]
+            tipo_video = "ESPECIAL (1/10)" if escolha_video == 1 else "PADRÃO (9/10)"
                 
             BOT2_LOGGER.info(f"[{horario_atual}] Caminho do vídeo escolhido: {video_path}")
             
-            # Verificar se o arquivo existe
-            if not os.path.exists(video_path):
-                BOT2_LOGGER.error(f"[{horario_atual}] ERRO: Arquivo de vídeo não encontrado: {video_path}")
-                # Listar os arquivos na pasta para debug
-                pasta_videos = os.path.dirname(video_path)
-                BOT2_LOGGER.info(f"[{horario_atual}] Arquivos na pasta {pasta_videos}: {os.listdir(pasta_videos) if os.path.exists(pasta_videos) else 'PASTA NÃO EXISTE'}")
-                continue
-            
-            BOT2_LOGGER.info(f"[{horario_atual}] Arquivo de vídeo encontrado: {video_path}")
-            
-            # Enviar o vídeo escolhido
-            BOT2_LOGGER.info(f"[{horario_atual}] Enviando vídeo para o canal {chat_id}...")
-            url_base_video = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendVideo"
-            
-            try:
-                with open(video_path, 'rb') as video_file:
-                    files = {
-                        'video': video_file
-                    }
-                    
-                    payload_video = {
-                        'chat_id': chat_id,
-                        'parse_mode': 'HTML'
-                    }
-                    
-                    BOT2_LOGGER.info(f"[{horario_atual}] Enviando requisição para API do Telegram...")
-                    resposta_video = requests.post(url_base_video, data=payload_video, files=files)
-                    BOT2_LOGGER.info(f"[{horario_atual}] Resposta da API: {resposta_video.status_code}")
-                    
-                    if resposta_video.status_code != 200:
-                        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo pós-sinal para o canal {chat_id}: {resposta_video.text}")
-                    else:
-                        tipo_video = "ESPECIAL (1/10)" if escolha_video == 1 else "PADRÃO (9/10)"
-                        BOT2_LOGGER.info(f"[{horario_atual}] VÍDEO PÓS-SINAL {tipo_video} ENVIADO COM SUCESSO para o canal {chat_id}")
-            except Exception as e:
-                BOT2_LOGGER.error(f"[{horario_atual}] Erro ao abrir ou enviar arquivo de vídeo: {str(e)}")
+            # Usar a função auxiliar para enviar o vídeo padronizado
+            descricao = f"PÓS-SINAL {tipo_video}"
+            if bot2_enviar_video_padronizado(video_path, chat_id, descricao, horario_atual):
+                BOT2_LOGGER.info(f"[{horario_atual}] VÍDEO {descricao} enviado com sucesso para o canal {chat_id}")
+            else:
+                BOT2_LOGGER.error(f"[{horario_atual}] Falha ao enviar VÍDEO {descricao} para o canal {chat_id}")
     
     except Exception as e:
         horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
         BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo pós-sinal: {str(e)}")
         traceback.print_exc()
 
-# Função para enviar mensagem promocional antes do sinal
 def bot2_enviar_promo_pre_sinal():
     """
     Envia uma mensagem promocional antes de cada sinal com vídeo.
@@ -1001,14 +971,16 @@ def bot2_enviar_promo_especial():
             
             # Obter o caminho do vídeo especial
             video_path = VIDEOS_ESPECIAIS["pt"]
-                
-            # Verificar se o arquivo existe
-            if not os.path.exists(video_path):
-                BOT2_LOGGER.error(f"[{horario_atual}] Arquivo de vídeo especial não encontrado: {video_path}")
-            else:
-                # Enviar vídeo
+            
+            # Enviar vídeo especial usando a função auxiliar
+            if os.path.exists(video_path):
                 BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO VÍDEO ESPECIAL (A CADA 3 SINAIS) para o canal {chat_id}...")
-                bot2_enviar_video_especial(video_path, chat_id, horario_atual)
+                if bot2_enviar_video_padronizado(video_path, chat_id, "ESPECIAL (A CADA 3 SINAIS)", horario_atual):
+                    BOT2_LOGGER.info(f"[{horario_atual}] VÍDEO ESPECIAL enviado com sucesso para o canal {chat_id}")
+                else:
+                    BOT2_LOGGER.error(f"[{horario_atual}] Falha ao enviar VÍDEO ESPECIAL para o canal {chat_id}")
+            else:
+                BOT2_LOGGER.error(f"[{horario_atual}] Arquivo de vídeo especial não encontrado: {video_path}")
             
             # Enviar mensagem com links (agora incorporados diretamente no texto)
             BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO MENSAGEM PROMOCIONAL ESPECIAL (A CADA 3 SINAIS) para o canal {chat_id}...")
@@ -1062,7 +1034,6 @@ def bot2_enviar_video_especial(video_path, chat_id, horario_atual):
         return False
 
 # Função para enviar o GIF especial a cada 3 sinais para todos os canais.
-# Este GIF é enviado 1 segundo antes da mensagem promocional especial.
 def bot2_enviar_gif_especial_pt():
     """
     Envia um GIF especial a cada 3 sinais para todos os canais.
@@ -1094,31 +1065,30 @@ def bot2_enviar_gif_especial_pt():
         # Enviar para todos os canais configurados
         for chat_id in BOT2_CHAT_IDS:
             BOT2_LOGGER.info(f"[{horario_atual}] Enviando GIF especial para o canal {chat_id}...")
-            # Usar sendVideo em vez de sendAnimation para maior compatibilidade
-            url_base_video = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendVideo"
             
-            with open(VIDEO_GIF_ESPECIAL_PT, 'rb') as gif_file:
-                files = {
-                    'video': gif_file
-                }
-                
-                payload_video = {
-                    'chat_id': chat_id,
-                    'parse_mode': 'HTML'
-                }
-                
-                resposta_video = requests.post(url_base_video, data=payload_video, files=files)
-                if resposta_video.status_code != 200:
-                    BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar GIF especial para o canal {chat_id}: {resposta_video.text}")
-                    # Tentar método alternativo se o primeiro falhar
+            # Primeiro tentar com a função auxiliar padrão
+            resultado = bot2_enviar_video_padronizado(VIDEO_GIF_ESPECIAL_PT, chat_id, "GIF ESPECIAL", horario_atual)
+            
+            # Se falhar, tentar o método alternativo (sendAnimation)
+            if not resultado:
+                BOT2_LOGGER.info(f"[{horario_atual}] Tentando método alternativo (sendAnimation) para o GIF especial...")
+                try:
                     url_alt = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendAnimation"
                     with open(VIDEO_GIF_ESPECIAL_PT, 'rb') as alt_file:
                         files_alt = {'animation': alt_file}
-                        resp_alt = requests.post(url_alt, data=payload_video, files=files_alt)
+                        payload_alt = {
+                            'chat_id': chat_id,
+                            'parse_mode': 'HTML',
+                            'width': 217,
+                            'height': 85
+                        }
+                        resp_alt = requests.post(url_alt, data=payload_alt, files=files_alt)
                         if resp_alt.status_code == 200:
                             BOT2_LOGGER.info(f"[{horario_atual}] GIF ESPECIAL ENVIADO COM SUCESSO via método alternativo para o canal {chat_id}")
-                else:
-                    BOT2_LOGGER.info(f"[{horario_atual}] GIF ESPECIAL ENVIADO COM SUCESSO para o canal {chat_id}")
+                        else:
+                            BOT2_LOGGER.error(f"[{horario_atual}] Falha também no método alternativo: {resp_alt.text}")
+                except Exception as e:
+                    BOT2_LOGGER.error(f"[{horario_atual}] Erro no método alternativo: {str(e)}")
     
     except Exception as e:
         horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
@@ -1288,30 +1258,11 @@ def bot2_enviar_video_pre_sinal():
             # Obter caminho do vídeo
             video_path = VIDEOS_PROMO.get("pt")
             
-            # Verificar se o arquivo existe
-            if not os.path.exists(video_path):
-                BOT2_LOGGER.error(f"[{horario_atual}] Arquivo de vídeo promocional não encontrado: {video_path}")
-                continue
-                
-            BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO VÍDEO PROMOCIONAL PRÉ-SINAL para o canal {chat_id}...")
-            # Enviar vídeo
-            url_base_video = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendVideo"
-            
-            with open(video_path, 'rb') as video_file:
-                files = {
-                    'video': video_file
-                }
-                
-                payload_video = {
-                    'chat_id': chat_id,
-                    'parse_mode': 'HTML'
-                }
-                
-                resposta_video = requests.post(url_base_video, data=payload_video, files=files)
-                if resposta_video.status_code != 200:
-                    BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo promocional para o canal {chat_id}: {resposta_video.text}")
-                else:
-                    BOT2_LOGGER.info(f"[{horario_atual}] VÍDEO PROMOCIONAL PRÉ-SINAL ENVIADO COM SUCESSO para o canal {chat_id}")
+            # Usar a função auxiliar para enviar o vídeo padronizado
+            if bot2_enviar_video_padronizado(video_path, chat_id, "PROMOCIONAL PRÉ-SINAL", horario_atual):
+                BOT2_LOGGER.info(f"[{horario_atual}] VÍDEO PROMOCIONAL PRÉ-SINAL enviado com sucesso para o canal {chat_id}")
+            else:
+                BOT2_LOGGER.error(f"[{horario_atual}] Falha ao enviar VÍDEO PROMOCIONAL PRÉ-SINAL para o canal {chat_id}")
     
     except Exception as e:
         horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
@@ -1547,3 +1498,53 @@ def bot2_keep_bot_running():
 # Executar se este arquivo for o script principal
 if __name__ == "__main__":
     iniciar_ambos_bots()
+
+# Função auxiliar para enviar vídeos com tamanho padronizado
+def bot2_enviar_video_padronizado(video_path, chat_id, descricao="", horario_atual=None):
+    """
+    Função auxiliar para enviar vídeos com o tamanho padronizado de 217x85.
+    
+    Args:
+        video_path (str): Caminho do arquivo de vídeo
+        chat_id (str): ID do chat destino
+        descricao (str): Descrição do vídeo para logs
+        horario_atual (str): Horário atual formatado, opcional
+        
+    Returns:
+        bool: True se enviado com sucesso, False caso contrário
+    """
+    if not horario_atual:
+        horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
+    
+    if not os.path.exists(video_path):
+        BOT2_LOGGER.error(f"[{horario_atual}] Arquivo de vídeo não encontrado: {video_path}")
+        return False
+    
+    try:
+        # Utilizar a API sendVideo do Telegram
+        url_base_video = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendVideo"
+        
+        with open(video_path, 'rb') as video_file:
+            files = {
+                'video': video_file
+            }
+            
+            payload_video = {
+                'chat_id': chat_id,
+                'parse_mode': 'HTML',
+                'width': 217,
+                'height': 85
+            }
+            
+            resposta_video = requests.post(url_base_video, data=payload_video, files=files)
+            
+            if resposta_video.status_code != 200:
+                BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo {descricao} para o canal {chat_id}: {resposta_video.text}")
+                return False
+            else:
+                BOT2_LOGGER.info(f"[{horario_atual}] Vídeo {descricao} ENVIADO COM SUCESSO para o canal {chat_id}")
+                return True
+    
+    except Exception as e:
+        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo {descricao}: {str(e)}")
+        return False
