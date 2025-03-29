@@ -24,71 +24,6 @@ import sys
 import os
 from functools import lru_cache
 
-# Verificar disponibilidade do Pillow para manipulação de imagens
-PIL_DISPONIVEL = False
-
-# Função para verificar caminhos alternativos do GitHub para os stickers
-def bot2_verificar_caminhos_alternativos(nome_arquivo, horario_atual=None):
-    """
-    Verifica caminhos alternativos para encontrar arquivos no GitHub.
-    
-    Args:
-        nome_arquivo (str): Nome do arquivo a ser procurado (ex: 'padrao.webp')
-        horario_atual (str): Horário atual formatado para logs
-        
-    Returns:
-        str: Caminho do arquivo encontrado ou None se não encontrado
-    """
-    if not horario_atual:
-        horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
-    
-    # Lista de caminhos possíveis para o GitHub e servidor Render
-    caminhos_possiveis = [
-        # Caminhos relativos no GitHub
-        os.path.join("videos", "pos_sinal", "pt", nome_arquivo),
-        os.path.join("videos", "pos_sinal", nome_arquivo),
-        os.path.join("videos", nome_arquivo),
-        
-        # Caminhos no servidor Render
-        os.path.join("/opt/render/project/src/videos/pos_sinal/pt", nome_arquivo),
-        os.path.join("/opt/render/project/src/videos/pos_sinal", nome_arquivo),
-        os.path.join("/opt/render/project/src/videos", nome_arquivo),
-        os.path.join("/opt/render/project/src", nome_arquivo),
-        
-        # Caminhos relativos ao diretório atual
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "videos", "pos_sinal", "pt", nome_arquivo),
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "videos", "pos_sinal", nome_arquivo),
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "videos", nome_arquivo),
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), nome_arquivo)
-    ]
-    
-    # Remover a extensão para tentar com outras extensões também
-    nome_sem_ext = os.path.splitext(nome_arquivo)[0]
-    extensoes = ['.webp', '.jpg', '.png', '.jpeg']
-    
-    # Adicionar caminhos com diferentes extensões
-    for caminho_base in caminhos_possiveis.copy():
-        diretorio = os.path.dirname(caminho_base)
-        for ext in extensoes:
-            if not ext in nome_arquivo:
-                novo_caminho = os.path.join(diretorio, f"{nome_sem_ext}{ext}")
-                caminhos_possiveis.append(novo_caminho)
-    
-    # Verificar se algum dos caminhos existe
-    for caminho in caminhos_possiveis:
-        if os.path.exists(caminho):
-            BOT2_LOGGER.info(f"[{horario_atual}] Arquivo encontrado em caminho alternativo: {caminho}")
-            return caminho
-    
-    return None
-
-try:
-    from PIL import Image, ImageDraw
-    PIL_DISPONIVEL = True
-    logging.info("Biblioteca PIL (Pillow) disponível para manipulação de imagens.")
-except ImportError:
-    logging.warning("Biblioteca PIL (Pillow) não disponível. As imagens serão enviadas sem tratamento.")
-
 # Configuração do logger específico para o Bot 2
 BOT2_LOGGER = logging.getLogger('bot2')
 BOT2_LOGGER.setLevel(logging.INFO)
@@ -925,74 +860,19 @@ VIDEOS_PROMO = {
 }
 
 # Vídeo GIF especial que vai ser enviado a cada 3 sinais
-# Usar o mesmo arquivo do vídeo especial para evitar o erro "arquivo não encontrado"
 VIDEO_GIF_ESPECIAL_PT = os.path.join(VIDEOS_ESPECIAL_PT_DIR, "especial.mp4")
 
 # Contador para controle dos GIFs pós-sinal
 contador_pos_sinal = 0
 contador_desde_ultimo_especial = 0
 
-# Função auxiliar para enviar vídeos com tamanho padronizado
-def bot2_enviar_video_padronizado(video_path, chat_id, descricao="", horario_atual=None):
+# Função auxiliar para enviar stickers com tamanho padronizado
+def bot2_enviar_sticker_padronizado(sticker_path, chat_id, descricao="", horario_atual=None):
     """
-    Função auxiliar para enviar vídeos com o tamanho padronizado.
+    Função auxiliar para enviar stickers no formato webp.
     
     Args:
-        video_path (str): Caminho do arquivo de vídeo
-        chat_id (str): ID do chat destino
-        descricao (str): Descrição do vídeo para logs
-        horario_atual (str): Horário atual formatado, opcional
-        
-    Returns:
-        bool: True se enviado com sucesso, False caso contrário
-    """
-    if not horario_atual:
-        horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
-    
-    if not os.path.exists(video_path):
-        BOT2_LOGGER.error(f"[{horario_atual}] Arquivo de vídeo não encontrado: {video_path}")
-        return False
-    
-    try:
-        # Utilizar a API sendVideo do Telegram
-        url_base_video = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendVideo"
-        
-        with open(video_path, 'rb') as video_file:
-            files = {
-                'video': video_file
-            }
-            
-            # Usar o tamanho renderizado correto: 217 × 85 px
-            # E incluir metadados para tamanho intrínseco: 320 × 126 px
-            payload_video = {
-                'chat_id': chat_id,
-                'parse_mode': 'HTML',
-                'width': 217,         # Tamanho renderizado - largura
-                'height': 85,         # Tamanho renderizado - altura
-                'media_width': 320,   # Tamanho intrínseco - largura
-                'media_height': 126   # Tamanho intrínseco - altura
-            }
-            
-            resposta_video = requests.post(url_base_video, data=payload_video, files=files)
-            
-            if resposta_video.status_code != 200:
-                BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo {descricao} para o canal {chat_id}: {resposta_video.text}")
-                return False
-            else:
-                BOT2_LOGGER.info(f"[{horario_atual}] Vídeo {descricao} ENVIADO COM SUCESSO para o canal {chat_id}, com dimensões: 217×85 (renderizado) e 320×126 (intrínseco)")
-                return True
-    
-    except Exception as e:
-        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo {descricao}: {str(e)}")
-        return False
-
-# Função auxiliar para enviar stickers
-def bot2_enviar_sticker(sticker_path, chat_id, descricao="", horario_atual=None):
-    """
-    Função auxiliar para enviar stickers.
-    
-    Args:
-        sticker_path (str): Caminho do arquivo de sticker
+        sticker_path (str): Caminho do arquivo sticker (webp)
         chat_id (str): ID do chat destino
         descricao (str): Descrição do sticker para logs
         horario_atual (str): Horário atual formatado, opcional
@@ -1003,62 +883,9 @@ def bot2_enviar_sticker(sticker_path, chat_id, descricao="", horario_atual=None)
     if not horario_atual:
         horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
     
-    # Verificar se o arquivo existe
     if not os.path.exists(sticker_path):
         BOT2_LOGGER.error(f"[{horario_atual}] Arquivo de sticker não encontrado: {sticker_path}")
-        
-        # Tentar encontrar arquivo nos caminhos do GitHub
-        nome_arquivo = os.path.basename(sticker_path)
-        caminho_alternativo = bot2_verificar_caminhos_alternativos(nome_arquivo, horario_atual)
-        
-        if caminho_alternativo:
-            sticker_path = caminho_alternativo
-            BOT2_LOGGER.info(f"[{horario_atual}] Usando arquivo do GitHub: {sticker_path}")
-        else:
-            # Tentar encontrar arquivo alternativo (diferentes extensões)
-            alternativas = []
-            base_path = os.path.splitext(sticker_path)[0]
-            
-            # Lista de possíveis extensões para tentar
-            for ext in ['.webp', '.jpg', '.png', '.jpeg']:
-                alt_path = f"{base_path}{ext}"
-                if os.path.exists(alt_path):
-                    alternativas.append(alt_path)
-                    BOT2_LOGGER.info(f"[{horario_atual}] Encontrado arquivo alternativo: {alt_path}")
-            
-            if alternativas:
-                # Usar o primeiro arquivo alternativo encontrado
-                sticker_path = alternativas[0]
-                BOT2_LOGGER.info(f"[{horario_atual}] Usando arquivo alternativo: {sticker_path}")
-            else:
-                # Tentar gerar um sticker automático
-                nome_base = os.path.splitext(os.path.basename(sticker_path))[0]
-                
-                if "especial" in nome_base.lower():
-                    # Sticker especial - usar vermelho
-                    sticker_path = bot2_gerar_sticker_automatico(
-                        nome=nome_base,
-                        cor_base=(255, 0, 0),
-                        cor_secundaria=(180, 0, 0),
-                        texto="ESPECIAL"
-                    )
-                else:
-                    # Sticker padrão - usar verde
-                    sticker_path = bot2_gerar_sticker_automatico(
-                        nome=nome_base,
-                        cor_base=(0, 180, 0),
-                        cor_secundaria=(0, 120, 0),
-                        texto="SINAL"
-                    )
-                
-                if not sticker_path:
-                    BOT2_LOGGER.error(f"[{horario_atual}] Não foi possível gerar sticker automático")
-                    return False
-                
-                BOT2_LOGGER.info(f"[{horario_atual}] Usando sticker gerado automaticamente: {sticker_path}")
-    
-    # Processar a imagem para garantir compatibilidade com stickers do Telegram
-    sticker_path = bot2_otimizar_imagem_para_sticker(sticker_path, horario_atual)
+        return False
     
     try:
         # Utilizar a API sendSticker do Telegram
@@ -1069,57 +896,14 @@ def bot2_enviar_sticker(sticker_path, chat_id, descricao="", horario_atual=None)
                 'sticker': sticker_file
             }
             
-            # Configuração básica para enviar o sticker
             payload_sticker = {
                 'chat_id': chat_id
-                # Stickers não têm opções adicionais de tamanho
             }
             
             resposta_sticker = requests.post(url_base_sticker, data=payload_sticker, files=files)
             
             if resposta_sticker.status_code != 200:
                 BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar sticker {descricao} para o canal {chat_id}: {resposta_sticker.text}")
-                
-                # Tentar enviar como foto em caso de erro com sticker
-                if '.webp' in sticker_path.lower():
-                    BOT2_LOGGER.warning(f"[{horario_atual}] Falha ao enviar como sticker. Tentando enviar como foto...")
-                    
-                    # Tentar converter para JPG se PIL estiver disponível
-                    if PIL_DISPONIVEL:
-                        try:
-                            img = Image.open(sticker_path)
-                            # Converter para RGB (remover transparência)
-                            if img.mode == 'RGBA':
-                                bg = Image.new('RGB', img.size, (255, 255, 255))
-                                bg.paste(img, mask=img.split()[3])
-                                img = bg
-                            
-                            # Salvar como JPG
-                            temp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "temp_stickers")
-                            os.makedirs(temp_dir, exist_ok=True)
-                            jpg_path = os.path.join(temp_dir, f"photo_{int(time.time())}.jpg")
-                            img.save(jpg_path, 'JPEG')
-                            img.close()
-                            
-                            # Enviar como foto
-                            url_base_photo = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendPhoto"
-                            with open(jpg_path, 'rb') as photo_file:
-                                files_photo = {
-                                    'photo': photo_file
-                                }
-                                payload_photo = {
-                                    'chat_id': chat_id
-                                }
-                                resposta_photo = requests.post(url_base_photo, data=payload_photo, files=files_photo)
-                                
-                                if resposta_photo.status_code == 200:
-                                    BOT2_LOGGER.info(f"[{horario_atual}] Sticker enviado como foto com sucesso para o canal {chat_id}")
-                                    return True
-                                else:
-                                    BOT2_LOGGER.error(f"[{horario_atual}] Falha ao enviar como foto: {resposta_photo.text}")
-                        except Exception as e:
-                            BOT2_LOGGER.error(f"[{horario_atual}] Erro ao converter e enviar como foto: {str(e)}")
-                
                 return False
             else:
                 BOT2_LOGGER.info(f"[{horario_atual}] Sticker {descricao} ENVIADO COM SUCESSO para o canal {chat_id}")
@@ -1176,69 +960,9 @@ def bot2_enviar_gif_pos_sinal():
                 
             BOT2_LOGGER.info(f"[{horario_atual}] Caminho do sticker escolhido: {sticker_path}")
             
-            # Verificar se o arquivo existe e tentar alternativas
-            if not os.path.exists(sticker_path):
-                BOT2_LOGGER.warning(f"[{horario_atual}] Arquivo de sticker não encontrado: {sticker_path}")
-                
-                # Primeiro tentar caminhos alternativos do GitHub
-                nome_arquivo = "especial.webp" if escolha_sticker == 1 else "padrao.webp"
-                caminho_alternativo = bot2_verificar_caminhos_alternativos(nome_arquivo, horario_atual)
-                
-                if caminho_alternativo:
-                    sticker_path = caminho_alternativo
-                    BOT2_LOGGER.info(f"[{horario_atual}] Usando arquivo alternativo do GitHub: {sticker_path}")
-                else:
-                    # Tentar diversos caminhos alternativos com diferentes extensões
-                    nome_arquivo = "especial" if escolha_sticker == 1 else "padrao"
-                    diretorios_possiveis = [
-                        VIDEOS_POS_SINAL_PT_DIR,
-                        VIDEOS_DIR,
-                        os.path.dirname(os.path.abspath(__file__))
-                    ]
-                    
-                    # Extensões para tentar
-                    extensoes = ['.webp', '.jpg', '.jpeg', '.png']
-                    
-                    # Procurar por alternativas
-                    sticker_alternativo = None
-                    for diretorio in diretorios_possiveis:
-                        for ext in extensoes:
-                            caminho_tentativa = os.path.join(diretorio, f"{nome_arquivo}{ext}")
-                            if os.path.exists(caminho_tentativa):
-                                sticker_alternativo = caminho_tentativa
-                                BOT2_LOGGER.info(f"[{horario_atual}] Encontrado sticker alternativo: {sticker_alternativo}")
-                                break
-                        if sticker_alternativo:
-                            break
-                    
-                    if sticker_alternativo:
-                        sticker_path = sticker_alternativo
-                    else:
-                        # Tentar gerar um sticker automaticamente se nenhum arquivo for encontrado
-                        if escolha_sticker == 1:
-                            # Sticker especial - vermelho
-                            sticker_path = bot2_gerar_sticker_automatico(
-                                nome="especial",
-                                cor_base=(255, 0, 0), 
-                                cor_secundaria=(180, 0, 0),
-                                texto="ESPECIAL"
-                            )
-                        else:
-                            # Sticker padrão - verde
-                            sticker_path = bot2_gerar_sticker_automatico(
-                                nome="padrao",
-                                cor_base=(0, 180, 0),
-                                cor_secundaria=(0, 120, 0),
-                                texto="SINAL"
-                            )
-                            
-                        if sticker_path is None:
-                            BOT2_LOGGER.error(f"[{horario_atual}] Não foi possível encontrar nenhuma alternativa para o sticker")
-                            continue
-            
-            # Usar a função auxiliar para enviar o sticker
+            # Usar a função auxiliar para enviar o sticker padronizado
             descricao = f"PÓS-SINAL {tipo_sticker}"
-            if bot2_enviar_sticker(sticker_path, chat_id, descricao, horario_atual):
+            if bot2_enviar_sticker_padronizado(sticker_path, chat_id, descricao, horario_atual):
                 BOT2_LOGGER.info(f"[{horario_atual}] STICKER {descricao} enviado com sucesso para o canal {chat_id}")
             else:
                 BOT2_LOGGER.error(f"[{horario_atual}] Falha ao enviar STICKER {descricao} para o canal {chat_id}")
@@ -1794,146 +1518,3 @@ def bot2_keep_bot_running():
 # Executar se este arquivo for o script principal
 if __name__ == "__main__":
     iniciar_ambos_bots()
-
-# Função para gerar automaticamente um sticker/imagem
-def bot2_gerar_sticker_automatico(nome="auto_sticker", cor_base=(255, 0, 0), cor_secundaria=None, texto=None):
-    """
-    Gera automaticamente um sticker quando não for possível encontrar o arquivo original.
-    
-    Args:
-        nome (str): Nome base para o arquivo gerado
-        cor_base (tuple): Cor base RGB (r, g, b)
-        cor_secundaria (tuple): Cor secundária para gradiente, opcional
-        texto (str): Texto a ser incluído no sticker, opcional
-        
-    Returns:
-        str: Caminho do sticker gerado ou None em caso de falha
-    """
-    if not PIL_DISPONIVEL:
-        BOT2_LOGGER.error("Não é possível gerar sticker: PIL não disponível")
-        return None
-    
-    try:
-        # Criar diretório para stickers automáticos
-        auto_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "auto_stickers")
-        os.makedirs(auto_dir, exist_ok=True)
-        
-        # Caminho do arquivo a ser gerado
-        output_path = os.path.join(auto_dir, f"{nome}_{int(time.time())}.webp")
-        
-        # Criar imagem base (512x512 é o tamanho padrão para stickers)
-        img = Image.new('RGBA', (512, 512), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(img)
-        
-        # Desenhar um retângulo com gradiente ou cor única
-        if cor_secundaria:
-            # Implementação simples de gradiente linear
-            for y in range(512):
-                # Calcular a cor para esta linha (interpolação linear)
-                fator = y / 512.0
-                r = int(cor_base[0] * (1 - fator) + cor_secundaria[0] * fator)
-                g = int(cor_base[1] * (1 - fator) + cor_secundaria[1] * fator)
-                b = int(cor_base[2] * (1 - fator) + cor_secundaria[2] * fator)
-                
-                # Desenhar uma linha horizontal com esta cor
-                draw.line([(0, y), (511, y)], fill=(r, g, b, 255))
-        else:
-            # Cor única
-            draw.rectangle([(0, 0), (511, 511)], fill=cor_base)
-        
-        # Adicionar texto se fornecido
-        if texto and PIL_DISPONIVEL:
-            try:
-                # Tentar importar o módulo ImageFont
-                from PIL import ImageFont
-                
-                # Usar fonte padrão se disponível
-                try:
-                    font = ImageFont.truetype("arial.ttf", 40)
-                except:
-                    font = ImageFont.load_default()
-                
-                # Calcular posição do texto (centro)
-                text_width, text_height = draw.textbbox((0, 0), texto, font=font)[2:4]
-                position = ((512 - text_width) // 2, (512 - text_height) // 2)
-                
-                # Desenhar texto
-                draw.text(position, texto, fill=(255, 255, 255, 255), font=font)
-                
-            except Exception as e:
-                BOT2_LOGGER.error(f"Erro ao adicionar texto ao sticker: {str(e)}")
-        
-        # Salvar imagem no formato webp
-        img.save(output_path, 'WEBP')
-        BOT2_LOGGER.info(f"Sticker gerado automaticamente: {output_path}")
-        
-        return output_path
-    
-    except Exception as e:
-        BOT2_LOGGER.error(f"Erro ao gerar sticker automático: {str(e)}")
-        return None
-
-# Função auxiliar para processar e otimizar imagem para sticker
-def bot2_otimizar_imagem_para_sticker(imagem_path, horario_atual=None):
-    """
-    Processa uma imagem para garantir que esteja otimizada para uso como sticker no Telegram.
-    
-    Args:
-        imagem_path (str): Caminho da imagem a ser otimizada
-        horario_atual (str): Horário atual formatado para logs
-        
-    Returns:
-        str: Caminho da imagem otimizada (pode ser o mesmo da entrada) ou None em caso de falha
-    """
-    if not horario_atual:
-        horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
-    
-    if not PIL_DISPONIVEL:
-        BOT2_LOGGER.warning(f"[{horario_atual}] Não é possível otimizar a imagem: PIL não disponível.")
-        return imagem_path  # Retorna a mesma imagem sem processamento
-    
-    try:
-        # Criar diretório para stickers processados
-        temp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "temp_stickers")
-        os.makedirs(temp_dir, exist_ok=True)
-        
-        # Abrir a imagem
-        img = Image.open(imagem_path)
-        nome_base = os.path.splitext(os.path.basename(imagem_path))[0]
-        
-        # Verificar formato da imagem
-        precisa_converter = img.format not in ['WEBP']
-        
-        # Verificar dimensões
-        width, height = img.size
-        precisa_redimensionar = width > 512 or height > 512
-        
-        # Se não precisar de alterações, retorna o caminho original
-        if not precisa_converter and not precisa_redimensionar:
-            img.close()
-            return imagem_path
-        
-        # Redimensionar se necessário
-        if precisa_redimensionar:
-            BOT2_LOGGER.info(f"[{horario_atual}] Redimensionando imagem de {width}x{height} para max 512x512")
-            
-            # Calcular proporção para manter aspecto
-            ratio = min(512 / width, 512 / height)
-            new_width = int(width * ratio)
-            new_height = int(height * ratio)
-            
-            # Redimensionar
-            img = img.resize((new_width, new_height), Image.LANCZOS)
-        
-        # Salvar imagem processada como webp
-        output_path = os.path.join(temp_dir, f"proc_{nome_base}_{int(time.time())}.webp")
-        img.save(output_path, 'WEBP')
-        BOT2_LOGGER.info(f"[{horario_atual}] Imagem otimizada para sticker: {output_path}")
-        
-        img.close()
-        return output_path
-        
-    except Exception as e:
-        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao otimizar imagem para sticker: {str(e)}")
-        return imagem_path  # Em caso de erro, retorna a imagem original
-
