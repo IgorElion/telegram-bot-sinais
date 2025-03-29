@@ -923,7 +923,8 @@ def bot2_enviar_video_padronizado(video_path, chat_id, descricao="", horario_atu
 # Função auxiliar para enviar fotos com tamanho padronizado
 def bot2_enviar_foto_padronizada(foto_path, chat_id, descricao="", horario_atual=None):
     """
-    Função auxiliar para enviar imagens como documento para preservar a transparência.
+    Função auxiliar para enviar imagens como sticker para preservar a transparência
+    e exibir diretamente na conversa.
     
     Args:
         foto_path (str): Caminho do arquivo de foto
@@ -944,54 +945,46 @@ def bot2_enviar_foto_padronizada(foto_path, chat_id, descricao="", horario_atual
     try:
         # Verificar a extensão do arquivo
         _, extensao = os.path.splitext(foto_path)
-        # Trocar para PNG se for JPG para melhor preservar transparência
+        # Recomendado usar PNG para transparência
         if extensao.lower() in ['.jpg', '.jpeg']:
             BOT2_LOGGER.info(f"[{horario_atual}] Recomendado usar imagens PNG para transparência em vez de JPG/JPEG")
         
-        # Utilizar a API sendDocument do Telegram para preservar transparência
-        url_base_documento = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendDocument"
+        # Primeira tentativa: enviar como sticker (melhor para transparência e visualização direta)
+        BOT2_LOGGER.info(f"[{horario_atual}] Enviando como sticker para preservar transparência e exibir diretamente...")
+        url_sticker = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendSticker"
         
-        with open(foto_path, 'rb') as arquivo:
-            files = {
-                'document': arquivo
-            }
+        with open(foto_path, 'rb') as sticker_file:
+            sticker_files = {'sticker': sticker_file}
+            sticker_payload = {'chat_id': chat_id}
+            sticker_resposta = requests.post(url_sticker, data=sticker_payload, files=sticker_files)
             
-            # Configurar o envio do documento/arquivo
-            payload = {
-                'chat_id': chat_id,
-                'parse_mode': 'HTML',
-                'caption': descricao  # Adicionar descrição como legenda
-            }
-            
-            BOT2_LOGGER.info(f"[{horario_atual}] Enviando imagem como documento para preservar transparência...")
-            resposta = requests.post(url_base_documento, data=payload, files=files)
-            
-            if resposta.status_code != 200:
-                BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar imagem {descricao} como documento para o canal {chat_id}: {resposta.text}")
+            if sticker_resposta.status_code == 200:
+                BOT2_LOGGER.info(f"[{horario_atual}] Imagem {descricao} enviada com sucesso como sticker!")
                 
-                # Tentativa alternativa: enviar como sticker se for PNG (melhor para transparência)
-                if extensao.lower() == '.png':
-                    BOT2_LOGGER.info(f"[{horario_atual}] Tentando enviar como sticker (melhor para transparência)...")
-                    url_sticker = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendSticker"
-                    with open(foto_path, 'rb') as sticker_file:
-                        sticker_files = {'sticker': sticker_file}
-                        sticker_payload = {'chat_id': chat_id}
-                        sticker_resposta = requests.post(url_sticker, data=sticker_payload, files=sticker_files)
-                        
-                        if sticker_resposta.status_code == 200:
-                            BOT2_LOGGER.info(f"[{horario_atual}] Imagem enviada com sucesso como sticker!")
-                            return True
-                        else:
-                            BOT2_LOGGER.error(f"[{horario_atual}] Falha também ao enviar como sticker: {sticker_resposta.text}")
+                # Enviar mensagem de texto adicional com a descrição, se necessário
+                if descricao:
+                    url_message = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendMessage"
+                    message_payload = {
+                        'chat_id': chat_id,
+                        'text': descricao,
+                        'parse_mode': 'HTML'
+                    }
+                    requests.post(url_message, data=message_payload)
                 
-                # Se todas as tentativas falharem, tente enviar como foto regular em último caso
-                BOT2_LOGGER.info(f"[{horario_atual}] Tentando como último recurso enviar como foto regular...")
+                return True
+            else:
+                BOT2_LOGGER.error(f"[{horario_atual}] Falha ao enviar como sticker: {sticker_resposta.text}")
+                
+                # Segunda tentativa: enviar como foto, mas avisar sobre possível perda de transparência
+                BOT2_LOGGER.info(f"[{horario_atual}] Tentando enviar como foto regular (pode ter bordas brancas)...")
                 url_photo = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendPhoto"
+                
                 with open(foto_path, 'rb') as photo_file:
                     photo_files = {'photo': photo_file}
                     photo_payload = {
                         'chat_id': chat_id,
-                        'parse_mode': 'HTML'
+                        'parse_mode': 'HTML',
+                        'caption': descricao
                     }
                     photo_resposta = requests.post(url_photo, data=photo_payload, files=photo_files)
                     
@@ -999,11 +992,8 @@ def bot2_enviar_foto_padronizada(foto_path, chat_id, descricao="", horario_atual
                         BOT2_LOGGER.info(f"[{horario_atual}] Imagem enviada como foto regular (pode ter perdido transparência)")
                         return True
                     else:
-                        BOT2_LOGGER.error(f"[{horario_atual}] Todas as tentativas de envio falharam")
+                        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar como foto: {photo_resposta.text}")
                         return False
-            else:
-                BOT2_LOGGER.info(f"[{horario_atual}] Imagem {descricao} ENVIADA COM SUCESSO como documento para o canal {chat_id}")
-                return True
     
     except Exception as e:
         BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar imagem {descricao}: {str(e)}")
