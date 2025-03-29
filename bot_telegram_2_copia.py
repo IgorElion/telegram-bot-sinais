@@ -866,6 +866,60 @@ VIDEO_GIF_ESPECIAL_PT = os.path.join(VIDEOS_ESPECIAL_PT_DIR, "especial.mp4")
 contador_pos_sinal = 0
 contador_desde_ultimo_especial = 0
 
+# Função auxiliar para enviar vídeos com tamanho padronizado
+def bot2_enviar_video_padronizado(video_path, chat_id, descricao="", horario_atual=None):
+    """
+    Função auxiliar para enviar vídeos com o tamanho padronizado.
+    
+    Args:
+        video_path (str): Caminho do arquivo de vídeo
+        chat_id (str): ID do chat destino
+        descricao (str): Descrição do vídeo para logs
+        horario_atual (str): Horário atual formatado, opcional
+        
+    Returns:
+        bool: True se enviado com sucesso, False caso contrário
+    """
+    if not horario_atual:
+        horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
+    
+    if not os.path.exists(video_path):
+        BOT2_LOGGER.error(f"[{horario_atual}] Arquivo de vídeo não encontrado: {video_path}")
+        return False
+    
+    try:
+        # Utilizar a API sendVideo do Telegram
+        url_base_video = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendVideo"
+        
+        with open(video_path, 'rb') as video_file:
+            files = {
+                'video': video_file
+            }
+            
+            # Usar o tamanho renderizado correto: 217 × 85 px
+            # E incluir metadados para tamanho intrínseco: 320 × 126 px
+            payload_video = {
+                'chat_id': chat_id,
+                'parse_mode': 'HTML',
+                'width': 217,         # Tamanho renderizado - largura
+                'height': 85,         # Tamanho renderizado - altura
+                'media_width': 320,   # Tamanho intrínseco - largura
+                'media_height': 126   # Tamanho intrínseco - altura
+            }
+            
+            resposta_video = requests.post(url_base_video, data=payload_video, files=files)
+            
+            if resposta_video.status_code != 200:
+                BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo {descricao} para o canal {chat_id}: {resposta_video.text}")
+                return False
+            else:
+                BOT2_LOGGER.info(f"[{horario_atual}] Vídeo {descricao} ENVIADO COM SUCESSO para o canal {chat_id}, com dimensões: 217×85 (renderizado) e 320×126 (intrínseco)")
+                return True
+    
+    except Exception as e:
+        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo {descricao}: {str(e)}")
+        return False
+
 # Função para enviar GIF pós-sinal
 def bot2_enviar_gif_pos_sinal():
     """
@@ -1003,35 +1057,6 @@ def bot2_enviar_promo_especial():
         horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
         BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar mensagem promocional especial: {str(e)}")
         traceback.print_exc()
-
-# Função auxiliar para enviar o vídeo especial
-def bot2_enviar_video_especial(video_path, chat_id, horario_atual):
-    """
-    Função auxiliar para enviar o vídeo especial.
-    """
-    try:
-        url_base_video = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendVideo"
-        
-        with open(video_path, 'rb') as video_file:
-            files = {
-                'video': video_file
-            }
-            
-            payload_video = {
-                'chat_id': chat_id,
-                'parse_mode': 'HTML'
-            }
-            
-            resposta_video = requests.post(url_base_video, data=payload_video, files=files)
-            if resposta_video.status_code != 200:
-                BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo especial para o canal {chat_id}: {resposta_video.text}")
-                return False
-            else:
-                BOT2_LOGGER.info(f"[{horario_atual}] VÍDEO ESPECIAL (A CADA 3 SINAIS) ENVIADO COM SUCESSO para o canal {chat_id}")
-                return True
-    except Exception as e:
-        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao abrir ou enviar arquivo de vídeo especial: {str(e)}")
-        return False
 
 # Função para enviar o GIF especial a cada 3 sinais para todos os canais.
 def bot2_enviar_gif_especial_pt():
@@ -1500,57 +1525,3 @@ def bot2_keep_bot_running():
 # Executar se este arquivo for o script principal
 if __name__ == "__main__":
     iniciar_ambos_bots()
-
-# Função auxiliar para enviar vídeos com tamanho padronizado
-def bot2_enviar_video_padronizado(video_path, chat_id, descricao="", horario_atual=None):
-    """
-    Função auxiliar para enviar vídeos com o tamanho padronizado.
-    
-    Args:
-        video_path (str): Caminho do arquivo de vídeo
-        chat_id (str): ID do chat destino
-        descricao (str): Descrição do vídeo para logs
-        horario_atual (str): Horário atual formatado, opcional
-        
-    Returns:
-        bool: True se enviado com sucesso, False caso contrário
-    """
-    if not horario_atual:
-        horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
-    
-    if not os.path.exists(video_path):
-        BOT2_LOGGER.error(f"[{horario_atual}] Arquivo de vídeo não encontrado: {video_path}")
-        return False
-    
-    try:
-        # Utilizar a API sendVideo do Telegram
-        url_base_video = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendVideo"
-        
-        with open(video_path, 'rb') as video_file:
-            files = {
-                'video': video_file
-            }
-            
-            # Usar o tamanho renderizado correto: 217 × 85 px
-            # E incluir metadados para tamanho intrínseco: 320 × 126 px
-            payload_video = {
-                'chat_id': chat_id,
-                'parse_mode': 'HTML',
-                'width': 217,         # Tamanho renderizado - largura
-                'height': 85,         # Tamanho renderizado - altura
-                'media_width': 320,   # Tamanho intrínseco - largura
-                'media_height': 126   # Tamanho intrínseco - altura
-            }
-            
-            resposta_video = requests.post(url_base_video, data=payload_video, files=files)
-            
-            if resposta_video.status_code != 200:
-                BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo {descricao} para o canal {chat_id}: {resposta_video.text}")
-                return False
-            else:
-                BOT2_LOGGER.info(f"[{horario_atual}] Vídeo {descricao} ENVIADO COM SUCESSO para o canal {chat_id}, com dimensões: 217×85 (renderizado) e 320×126 (intrínseco)")
-                return True
-    
-    except Exception as e:
-        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo {descricao}: {str(e)}")
-        return False
