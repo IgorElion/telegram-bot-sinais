@@ -951,47 +951,55 @@ def bot2_enviar_sticker(sticker_path, chat_id, descricao="", horario_atual=None)
     if not os.path.exists(sticker_path):
         BOT2_LOGGER.error(f"[{horario_atual}] Arquivo de sticker não encontrado: {sticker_path}")
         
-        # Tentar encontrar arquivo alternativo (diferentes extensões)
-        alternativas = []
-        base_path = os.path.splitext(sticker_path)[0]
+        # Tentar encontrar arquivo nos caminhos do GitHub
+        nome_arquivo = os.path.basename(sticker_path)
+        caminho_alternativo = bot2_verificar_caminhos_alternativos(nome_arquivo, horario_atual)
         
-        # Lista de possíveis extensões para tentar
-        for ext in ['.webp', '.jpg', '.png', '.jpeg']:
-            alt_path = f"{base_path}{ext}"
-            if os.path.exists(alt_path):
-                alternativas.append(alt_path)
-                BOT2_LOGGER.info(f"[{horario_atual}] Encontrado arquivo alternativo: {alt_path}")
-        
-        if alternativas:
-            # Usar o primeiro arquivo alternativo encontrado
-            sticker_path = alternativas[0]
-            BOT2_LOGGER.info(f"[{horario_atual}] Usando arquivo alternativo: {sticker_path}")
+        if caminho_alternativo:
+            sticker_path = caminho_alternativo
+            BOT2_LOGGER.info(f"[{horario_atual}] Usando arquivo do GitHub: {sticker_path}")
         else:
-            # Tentar gerar um sticker automático
-            nome_base = os.path.splitext(os.path.basename(sticker_path))[0]
+            # Tentar encontrar arquivo alternativo (diferentes extensões)
+            alternativas = []
+            base_path = os.path.splitext(sticker_path)[0]
             
-            if "especial" in nome_base.lower():
-                # Sticker especial - usar vermelho
-                sticker_path = bot2_gerar_sticker_automatico(
-                    nome=nome_base,
-                    cor_base=(255, 0, 0),
-                    cor_secundaria=(180, 0, 0),
-                    texto="ESPECIAL"
-                )
+            # Lista de possíveis extensões para tentar
+            for ext in ['.webp', '.jpg', '.png', '.jpeg']:
+                alt_path = f"{base_path}{ext}"
+                if os.path.exists(alt_path):
+                    alternativas.append(alt_path)
+                    BOT2_LOGGER.info(f"[{horario_atual}] Encontrado arquivo alternativo: {alt_path}")
+            
+            if alternativas:
+                # Usar o primeiro arquivo alternativo encontrado
+                sticker_path = alternativas[0]
+                BOT2_LOGGER.info(f"[{horario_atual}] Usando arquivo alternativo: {sticker_path}")
             else:
-                # Sticker padrão - usar verde
-                sticker_path = bot2_gerar_sticker_automatico(
-                    nome=nome_base,
-                    cor_base=(0, 180, 0),
-                    cor_secundaria=(0, 120, 0),
-                    texto="SINAL"
-                )
-            
-            if not sticker_path:
-                BOT2_LOGGER.error(f"[{horario_atual}] Não foi possível gerar sticker automático")
-                return False
-            
-            BOT2_LOGGER.info(f"[{horario_atual}] Usando sticker gerado automaticamente: {sticker_path}")
+                # Tentar gerar um sticker automático
+                nome_base = os.path.splitext(os.path.basename(sticker_path))[0]
+                
+                if "especial" in nome_base.lower():
+                    # Sticker especial - usar vermelho
+                    sticker_path = bot2_gerar_sticker_automatico(
+                        nome=nome_base,
+                        cor_base=(255, 0, 0),
+                        cor_secundaria=(180, 0, 0),
+                        texto="ESPECIAL"
+                    )
+                else:
+                    # Sticker padrão - usar verde
+                    sticker_path = bot2_gerar_sticker_automatico(
+                        nome=nome_base,
+                        cor_base=(0, 180, 0),
+                        cor_secundaria=(0, 120, 0),
+                        texto="SINAL"
+                    )
+                
+                if not sticker_path:
+                    BOT2_LOGGER.error(f"[{horario_atual}] Não foi possível gerar sticker automático")
+                    return False
+                
+                BOT2_LOGGER.info(f"[{horario_atual}] Usando sticker gerado automaticamente: {sticker_path}")
     
     # Processar a imagem para garantir compatibilidade com stickers do Telegram
     sticker_path = bot2_otimizar_imagem_para_sticker(sticker_path, horario_atual)
@@ -1116,33 +1124,61 @@ def bot2_enviar_gif_pos_sinal():
             if not os.path.exists(sticker_path):
                 BOT2_LOGGER.warning(f"[{horario_atual}] Arquivo de sticker não encontrado: {sticker_path}")
                 
-                # Tentar diversos caminhos alternativos com diferentes extensões
-                nome_arquivo = "especial" if escolha_sticker == 1 else "padrao"
-                diretorios_possiveis = [
-                    VIDEOS_POS_SINAL_PT_DIR,
-                    VIDEOS_DIR,
-                    os.path.dirname(os.path.abspath(__file__))
-                ]
+                # Primeiro tentar caminhos alternativos do GitHub
+                nome_arquivo = "especial.webp" if escolha_sticker == 1 else "padrao.webp"
+                caminho_alternativo = bot2_verificar_caminhos_alternativos(nome_arquivo, horario_atual)
                 
-                # Extensões para tentar
-                extensoes = ['.webp', '.jpg', '.jpeg', '.png']
-                
-                # Procurar por alternativas
-                sticker_alternativo = None
-                for diretorio in diretorios_possiveis:
-                    for ext in extensoes:
-                        caminho_tentativa = os.path.join(diretorio, f"{nome_arquivo}{ext}")
-                        if os.path.exists(caminho_tentativa):
-                            sticker_alternativo = caminho_tentativa
-                            BOT2_LOGGER.info(f"[{horario_atual}] Encontrado sticker alternativo: {sticker_alternativo}")
-                            break
-                    if sticker_alternativo:
-                        break
-                
-                if sticker_alternativo:
-                    sticker_path = sticker_alternativo
+                if caminho_alternativo:
+                    sticker_path = caminho_alternativo
+                    BOT2_LOGGER.info(f"[{horario_atual}] Usando arquivo alternativo do GitHub: {sticker_path}")
                 else:
-                    BOT2_LOGGER.error(f"[{horario_atual}] Não foi possível encontrar nenhuma alternativa para o sticker")
+                    # Tentar diversos caminhos alternativos com diferentes extensões
+                    nome_arquivo = "especial" if escolha_sticker == 1 else "padrao"
+                    diretorios_possiveis = [
+                        VIDEOS_POS_SINAL_PT_DIR,
+                        VIDEOS_DIR,
+                        os.path.dirname(os.path.abspath(__file__))
+                    ]
+                    
+                    # Extensões para tentar
+                    extensoes = ['.webp', '.jpg', '.jpeg', '.png']
+                    
+                    # Procurar por alternativas
+                    sticker_alternativo = None
+                    for diretorio in diretorios_possiveis:
+                        for ext in extensoes:
+                            caminho_tentativa = os.path.join(diretorio, f"{nome_arquivo}{ext}")
+                            if os.path.exists(caminho_tentativa):
+                                sticker_alternativo = caminho_tentativa
+                                BOT2_LOGGER.info(f"[{horario_atual}] Encontrado sticker alternativo: {sticker_alternativo}")
+                                break
+                        if sticker_alternativo:
+                            break
+                    
+                    if sticker_alternativo:
+                        sticker_path = sticker_alternativo
+                    else:
+                        # Tentar gerar um sticker automaticamente se nenhum arquivo for encontrado
+                        if escolha_sticker == 1:
+                            # Sticker especial - vermelho
+                            sticker_path = bot2_gerar_sticker_automatico(
+                                nome="especial",
+                                cor_base=(255, 0, 0), 
+                                cor_secundaria=(180, 0, 0),
+                                texto="ESPECIAL"
+                            )
+                        else:
+                            # Sticker padrão - verde
+                            sticker_path = bot2_gerar_sticker_automatico(
+                                nome="padrao",
+                                cor_base=(0, 180, 0),
+                                cor_secundaria=(0, 120, 0),
+                                texto="SINAL"
+                            )
+                            
+                        if sticker_path is None:
+                            BOT2_LOGGER.error(f"[{horario_atual}] Não foi possível encontrar nenhuma alternativa para o sticker")
+                            continue
             
             # Usar a função auxiliar para enviar o sticker
             descricao = f"PÓS-SINAL {tipo_sticker}"
@@ -1844,3 +1880,58 @@ def bot2_otimizar_imagem_para_sticker(imagem_path, horario_atual=None):
     except Exception as e:
         BOT2_LOGGER.error(f"[{horario_atual}] Erro ao otimizar imagem para sticker: {str(e)}")
         return imagem_path  # Em caso de erro, retorna a imagem original
+
+# Função para verificar caminhos alternativos do GitHub para os stickers
+def bot2_verificar_caminhos_alternativos(nome_arquivo, horario_atual=None):
+    """
+    Verifica caminhos alternativos para encontrar arquivos no GitHub.
+    
+    Args:
+        nome_arquivo (str): Nome do arquivo a ser procurado (ex: 'padrao.webp')
+        horario_atual (str): Horário atual formatado para logs
+        
+    Returns:
+        str: Caminho do arquivo encontrado ou None se não encontrado
+    """
+    if not horario_atual:
+        horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
+    
+    # Lista de caminhos possíveis para o GitHub e servidor Render
+    caminhos_possiveis = [
+        # Caminhos relativos no GitHub
+        os.path.join("videos", "pos_sinal", "pt", nome_arquivo),
+        os.path.join("videos", "pos_sinal", nome_arquivo),
+        os.path.join("videos", nome_arquivo),
+        
+        # Caminhos no servidor Render
+        os.path.join("/opt/render/project/src/videos/pos_sinal/pt", nome_arquivo),
+        os.path.join("/opt/render/project/src/videos/pos_sinal", nome_arquivo),
+        os.path.join("/opt/render/project/src/videos", nome_arquivo),
+        os.path.join("/opt/render/project/src", nome_arquivo),
+        
+        # Caminhos relativos ao diretório atual
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "videos", "pos_sinal", "pt", nome_arquivo),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "videos", "pos_sinal", nome_arquivo),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "videos", nome_arquivo),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), nome_arquivo)
+    ]
+    
+    # Remover a extensão para tentar com outras extensões também
+    nome_sem_ext = os.path.splitext(nome_arquivo)[0]
+    extensoes = ['.webp', '.jpg', '.png', '.jpeg']
+    
+    # Adicionar caminhos com diferentes extensões
+    for caminho_base in caminhos_possiveis.copy():
+        diretorio = os.path.dirname(caminho_base)
+        for ext in extensoes:
+            if not ext in nome_arquivo:
+                novo_caminho = os.path.join(diretorio, f"{nome_sem_ext}{ext}")
+                caminhos_possiveis.append(novo_caminho)
+    
+    # Verificar se algum dos caminhos existe
+    for caminho in caminhos_possiveis:
+        if os.path.exists(caminho):
+            BOT2_LOGGER.info(f"[{horario_atual}] Arquivo encontrado em caminho alternativo: {caminho}")
+            return caminho
+    
+    return None
