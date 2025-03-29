@@ -920,63 +920,116 @@ def bot2_enviar_video_padronizado(video_path, chat_id, descricao="", horario_atu
         BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo {descricao}: {str(e)}")
         return False
 
+# Função auxiliar para enviar fotos com tamanho padronizado
+def bot2_enviar_foto_padronizada(foto_path, chat_id, descricao="", horario_atual=None):
+    """
+    Função auxiliar para enviar fotos com o tamanho padronizado.
+    
+    Args:
+        foto_path (str): Caminho do arquivo de foto
+        chat_id (str): ID do chat destino
+        descricao (str): Descrição da foto para logs
+        horario_atual (str): Horário atual formatado, opcional
+        
+    Returns:
+        bool: True se enviado com sucesso, False caso contrário
+    """
+    if not horario_atual:
+        horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
+    
+    if not os.path.exists(foto_path):
+        BOT2_LOGGER.error(f"[{horario_atual}] Arquivo de foto não encontrado: {foto_path}")
+        return False
+    
+    try:
+        # Utilizar a API sendPhoto do Telegram
+        url_base_foto = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendPhoto"
+        
+        with open(foto_path, 'rb') as foto_file:
+            files = {
+                'photo': foto_file
+            }
+            
+            # Configurar o envio da foto
+            payload_foto = {
+                'chat_id': chat_id,
+                'parse_mode': 'HTML',
+                'width': 217,         # Tamanho renderizado - largura
+                'height': 85,         # Tamanho renderizado - altura
+            }
+            
+            resposta_foto = requests.post(url_base_foto, data=payload_foto, files=files)
+            
+            if resposta_foto.status_code != 200:
+                BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar foto {descricao} para o canal {chat_id}: {resposta_foto.text}")
+                return False
+            else:
+                BOT2_LOGGER.info(f"[{horario_atual}] Foto {descricao} ENVIADA COM SUCESSO para o canal {chat_id}")
+                return True
+    
+    except Exception as e:
+        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar foto {descricao}: {str(e)}")
+        return False
+
 # Função para enviar GIF pós-sinal
 def bot2_enviar_gif_pos_sinal():
     """
-    Envia um vídeo 1 minuto após cada sinal.
-    Escolhe entre dois vídeos: o primeiro é enviado em 9 de 10 sinais, o segundo em 1 de 10 sinais.
-    A escolha do vídeo especial (segundo) é aleatória, garantindo apenas a proporção de 1 a cada 10.
+    Envia uma foto após cada sinal.
+    Escolhe entre duas fotos: a primeira é enviada em 9 de 10 sinais, a segunda em 1 de 10 sinais.
+    A escolha da foto especial (segunda) é aleatória, garantindo apenas a proporção de 1 a cada 10.
     """
     global contador_pos_sinal, contador_desde_ultimo_especial
     
     try:
         horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
-        BOT2_LOGGER.info(f"[{horario_atual}] INICIANDO ENVIO DO VÍDEO PÓS-SINAL (1 minuto após o sinal)...")
+        BOT2_LOGGER.info(f"[{horario_atual}] INICIANDO ENVIO DA FOTO PÓS-SINAL...")
         
         # Incrementar os contadores
         contador_pos_sinal += 1
         contador_desde_ultimo_especial += 1
         
-        # Decidir qual vídeo enviar (9/10 o primeiro, 1/10 o segundo)
-        escolha_video = 0  # Índice do primeiro vídeo por padrão
+        # Decidir qual foto enviar (9/10 a primeira, 1/10 a segunda)
+        escolha_foto = 0  # Índice da primeira foto por padrão
         
-        # Lógica para seleção aleatória do vídeo especial
+        # Lógica para seleção aleatória da foto especial
         if contador_desde_ultimo_especial >= 10:
-            # Forçar o vídeo especial se já passaram 10 sinais desde o último
-            escolha_video = 1
-            BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO O VÍDEO ESPECIAL (forçado após 10 sinais)")
+            # Forçar a foto especial se já passaram 10 sinais desde o último
+            escolha_foto = 1
+            BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO A FOTO ESPECIAL (forçado após 10 sinais)")
             contador_desde_ultimo_especial = 0
         elif contador_desde_ultimo_especial > 1:
-            # A probabilidade de enviar o vídeo especial aumenta conforme
+            # A probabilidade de enviar a foto especial aumenta conforme
             # mais sinais passam sem que o especial seja enviado
             probabilidade = (contador_desde_ultimo_especial - 1) / 10.0
             if random.random() < probabilidade:
-                escolha_video = 1
-                BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO O VÍDEO ESPECIAL (aleatório com probabilidade {probabilidade:.2f})")
+                escolha_foto = 1
+                BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO A FOTO ESPECIAL (aleatório com probabilidade {probabilidade:.2f})")
                 contador_desde_ultimo_especial = 0
             else:
-                BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO O VÍDEO PADRÃO (probabilidade de especial era {probabilidade:.2f})")
+                BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO A FOTO PADRÃO (probabilidade de especial era {probabilidade:.2f})")
         else:
-            BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO O VÍDEO PADRÃO (muito cedo para especial)")
+            BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO A FOTO PADRÃO (muito cedo para especial)")
         
         # Loop para enviar aos canais configurados
         for chat_id in BOT2_CHAT_IDS:
-            # Obter o caminho do vídeo escolhido
-            video_path = VIDEOS_POS_SINAL["pt"][escolha_video]
-            tipo_video = "ESPECIAL (1/10)" if escolha_video == 1 else "PADRÃO (9/10)"
+            # Obter o caminho da foto escolhida
+            # Substituir extensão .mp4 por .jpg para as fotos
+            video_path = VIDEOS_POS_SINAL["pt"][escolha_foto]
+            foto_path = video_path.replace(".mp4", ".jpg")
                 
-            BOT2_LOGGER.info(f"[{horario_atual}] Caminho do vídeo escolhido: {video_path}")
+            tipo_foto = "ESPECIAL (1/10)" if escolha_foto == 1 else "PADRÃO (9/10)"
+            BOT2_LOGGER.info(f"[{horario_atual}] Caminho da foto escolhida: {foto_path}")
             
-            # Usar a função auxiliar para enviar o vídeo padronizado
-            descricao = f"PÓS-SINAL {tipo_video}"
-            if bot2_enviar_video_padronizado(video_path, chat_id, descricao, horario_atual):
-                BOT2_LOGGER.info(f"[{horario_atual}] VÍDEO {descricao} enviado com sucesso para o canal {chat_id}")
+            # Usar a função auxiliar para enviar a foto padronizada
+            descricao = f"PÓS-SINAL {tipo_foto}"
+            if bot2_enviar_foto_padronizada(foto_path, chat_id, descricao, horario_atual):
+                BOT2_LOGGER.info(f"[{horario_atual}] FOTO {descricao} enviada com sucesso para o canal {chat_id}")
             else:
-                BOT2_LOGGER.error(f"[{horario_atual}] Falha ao enviar VÍDEO {descricao} para o canal {chat_id}")
+                BOT2_LOGGER.error(f"[{horario_atual}] Falha ao enviar FOTO {descricao} para o canal {chat_id}")
     
     except Exception as e:
         horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
-        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo pós-sinal: {str(e)}")
+        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar foto pós-sinal: {str(e)}")
         traceback.print_exc()
 
 def bot2_enviar_promo_pre_sinal():
