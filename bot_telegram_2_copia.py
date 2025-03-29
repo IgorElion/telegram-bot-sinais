@@ -923,7 +923,7 @@ def bot2_enviar_video_padronizado(video_path, chat_id, descricao="", horario_atu
 # Função auxiliar para enviar fotos com tamanho padronizado
 def bot2_enviar_foto_padronizada(foto_path, chat_id, descricao="", horario_atual=None):
     """
-    Função auxiliar para enviar fotos com o tamanho padronizado.
+    Função auxiliar para enviar fotos em seu tamanho original.
     
     Args:
         foto_path (str): Caminho do arquivo de foto
@@ -950,12 +950,10 @@ def bot2_enviar_foto_padronizada(foto_path, chat_id, descricao="", horario_atual
                 'photo': foto_file
             }
             
-            # Configurar o envio da foto
+            # Configurar o envio da foto sem definir tamanhos
             payload_foto = {
                 'chat_id': chat_id,
-                'parse_mode': 'HTML',
-                'width': 217,         # Tamanho renderizado - largura
-                'height': 85,         # Tamanho renderizado - altura
+                'parse_mode': 'HTML'
             }
             
             resposta_foto = requests.post(url_base_foto, data=payload_foto, files=files)
@@ -964,7 +962,7 @@ def bot2_enviar_foto_padronizada(foto_path, chat_id, descricao="", horario_atual
                 BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar foto {descricao} para o canal {chat_id}: {resposta_foto.text}")
                 return False
             else:
-                BOT2_LOGGER.info(f"[{horario_atual}] Foto {descricao} ENVIADA COM SUCESSO para o canal {chat_id}")
+                BOT2_LOGGER.info(f"[{horario_atual}] Foto {descricao} ENVIADA COM SUCESSO para o canal {chat_id} em seu tamanho original")
                 return True
     
     except Exception as e:
