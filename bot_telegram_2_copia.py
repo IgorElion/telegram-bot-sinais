@@ -860,7 +860,7 @@ VIDEOS_PROMO = {
 }
 
 # Vídeo GIF especial que vai ser enviado a cada 3 sinais
-VIDEO_GIF_ESPECIAL_PT = os.path.join(VIDEOS_ESPECIAL_DIR, "gif_especial_pt.mp4")
+VIDEO_GIF_ESPECIAL_PT = os.path.join(VIDEOS_ESPECIAL_PT_DIR, "especial.mp4")
 
 # Contador para controle dos GIFs pós-sinal
 contador_pos_sinal = 0
@@ -1066,22 +1066,30 @@ def bot2_enviar_video_especial(video_path, chat_id, horario_atual):
 def bot2_enviar_gif_especial_pt():
     """
     Envia um GIF especial a cada 3 sinais para todos os canais.
-    Este GIF é enviado 1 segundo antes da mensagem promocional especial.
+    Usa o mesmo arquivo de vídeo especial (especial.mp4) para garantir compatibilidade.
     """
     try:
         horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
         BOT2_LOGGER.info(f"[{horario_atual}] INICIANDO ENVIO DO GIF ESPECIAL (A CADA 3 SINAIS)...")
         
         # Garantir que a pasta existe
-        if not os.path.exists(VIDEOS_ESPECIAL_DIR):
-            os.makedirs(VIDEOS_ESPECIAL_DIR, exist_ok=True)
-            BOT2_LOGGER.info(f"[{horario_atual}] Criada pasta para GIFs especiais: {VIDEOS_ESPECIAL_DIR}")
+        if not os.path.exists(VIDEOS_ESPECIAL_PT_DIR):
+            os.makedirs(VIDEOS_ESPECIAL_PT_DIR, exist_ok=True)
+            BOT2_LOGGER.info(f"[{horario_atual}] Criada pasta para vídeos especiais: {VIDEOS_ESPECIAL_PT_DIR}")
         
         # Verificar se o arquivo existe
         if not os.path.exists(VIDEO_GIF_ESPECIAL_PT):
             BOT2_LOGGER.error(f"[{horario_atual}] Arquivo de GIF especial não encontrado: {VIDEO_GIF_ESPECIAL_PT}")
-            BOT2_LOGGER.info(f"[{horario_atual}] Listando arquivos na pasta {VIDEOS_ESPECIAL_DIR}: {os.listdir(VIDEOS_ESPECIAL_DIR) if os.path.exists(VIDEOS_ESPECIAL_DIR) else 'PASTA NÃO EXISTE'}")
-            return
+            BOT2_LOGGER.info(f"[{horario_atual}] Tentando encontrar arquivos na pasta {VIDEOS_ESPECIAL_PT_DIR}: {os.listdir(VIDEOS_ESPECIAL_PT_DIR) if os.path.exists(VIDEOS_ESPECIAL_PT_DIR) else 'PASTA NÃO EXISTE'}")
+            
+            # Tentar usar o vídeo especial diretamente
+            backup_video = os.path.join(VIDEOS_ESPECIAL_PT_DIR, "especial.mp4")
+            if os.path.exists(backup_video):
+                BOT2_LOGGER.info(f"[{horario_atual}] Usando arquivo de backup: {backup_video}")
+                VIDEO_GIF_ESPECIAL_PT = backup_video
+            else:
+                BOT2_LOGGER.error(f"[{horario_atual}] Arquivo de backup também não encontrado: {backup_video}")
+                return
         
         # Enviar para todos os canais configurados
         for chat_id in BOT2_CHAT_IDS:
