@@ -844,8 +844,8 @@ os.makedirs(VIDEOS_ESPECIAL_PT_DIR, exist_ok=True)
 # Configurar vídeos apenas para português 
 VIDEOS_POS_SINAL = {
     "pt": [
-        os.path.join(VIDEOS_POS_SINAL_PT_DIR, "padrão.mp4"),  # Vídeo padrão em português (9/10)
-        os.path.join(VIDEOS_POS_SINAL_PT_DIR, "especial.mp4")  # Vídeo especial em português (1/10)
+        os.path.join(VIDEOS_POS_SINAL_PT_DIR, "padrao.webp"),  # Sticker padrão em português (9/10)
+        os.path.join(VIDEOS_POS_SINAL_PT_DIR, "especial.webp")  # Sticker especial em português (1/10)
     ]
 }
 
@@ -860,6 +860,7 @@ VIDEOS_PROMO = {
 }
 
 # Vídeo GIF especial que vai ser enviado a cada 3 sinais
+# Usar o mesmo arquivo do vídeo especial para evitar o erro "arquivo não encontrado"
 VIDEO_GIF_ESPECIAL_PT = os.path.join(VIDEOS_ESPECIAL_PT_DIR, "especial.mp4")
 
 # Contador para controle dos GIFs pós-sinal
@@ -920,16 +921,15 @@ def bot2_enviar_video_padronizado(video_path, chat_id, descricao="", horario_atu
         BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar vídeo {descricao}: {str(e)}")
         return False
 
-# Função auxiliar para enviar fotos com tamanho padronizado
-def bot2_enviar_foto_padronizada(foto_path, chat_id, descricao="", horario_atual=None):
+# Função auxiliar para enviar stickers
+def bot2_enviar_sticker(sticker_path, chat_id, descricao="", horario_atual=None):
     """
-    Função auxiliar para enviar imagens como sticker para preservar a transparência
-    e exibir diretamente na conversa.
+    Função auxiliar para enviar stickers.
     
     Args:
-        foto_path (str): Caminho do arquivo de foto
+        sticker_path (str): Caminho do arquivo de sticker
         chat_id (str): ID do chat destino
-        descricao (str): Descrição da foto para logs
+        descricao (str): Descrição do sticker para logs
         horario_atual (str): Horário atual formatado, opcional
         
     Returns:
@@ -938,127 +938,95 @@ def bot2_enviar_foto_padronizada(foto_path, chat_id, descricao="", horario_atual
     if not horario_atual:
         horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
     
-    if not os.path.exists(foto_path):
-        BOT2_LOGGER.error(f"[{horario_atual}] Arquivo de imagem não encontrado: {foto_path}")
+    if not os.path.exists(sticker_path):
+        BOT2_LOGGER.error(f"[{horario_atual}] Arquivo de sticker não encontrado: {sticker_path}")
         return False
     
     try:
-        # Verificar a extensão do arquivo
-        _, extensao = os.path.splitext(foto_path)
-        # Recomendado usar PNG para transparência
-        if extensao.lower() in ['.jpg', '.jpeg']:
-            BOT2_LOGGER.info(f"[{horario_atual}] Recomendado usar imagens PNG para transparência em vez de JPG/JPEG")
+        # Utilizar a API sendSticker do Telegram
+        url_base_sticker = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendSticker"
         
-        # Primeira tentativa: enviar como sticker (melhor para transparência e visualização direta)
-        BOT2_LOGGER.info(f"[{horario_atual}] Enviando como sticker para preservar transparência e exibir diretamente...")
-        url_sticker = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendSticker"
-        
-        with open(foto_path, 'rb') as sticker_file:
-            sticker_files = {'sticker': sticker_file}
-            sticker_payload = {'chat_id': chat_id}
-            sticker_resposta = requests.post(url_sticker, data=sticker_payload, files=sticker_files)
+        with open(sticker_path, 'rb') as sticker_file:
+            files = {
+                'sticker': sticker_file
+            }
             
-            if sticker_resposta.status_code == 200:
-                BOT2_LOGGER.info(f"[{horario_atual}] Imagem {descricao} enviada com sucesso como sticker!")
-                
-                # Enviar mensagem de texto adicional com a descrição, se necessário
-                if descricao:
-                    url_message = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendMessage"
-                    message_payload = {
-                        'chat_id': chat_id,
-                        'text': descricao,
-                        'parse_mode': 'HTML'
-                    }
-                    requests.post(url_message, data=message_payload)
-                
-                return True
+            # Configuração básica para enviar o sticker
+            payload_sticker = {
+                'chat_id': chat_id
+                # Stickers não têm opções adicionais de tamanho
+            }
+            
+            resposta_sticker = requests.post(url_base_sticker, data=payload_sticker, files=files)
+            
+            if resposta_sticker.status_code != 200:
+                BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar sticker {descricao} para o canal {chat_id}: {resposta_sticker.text}")
+                return False
             else:
-                BOT2_LOGGER.error(f"[{horario_atual}] Falha ao enviar como sticker: {sticker_resposta.text}")
-                
-                # Segunda tentativa: enviar como foto, mas avisar sobre possível perda de transparência
-                BOT2_LOGGER.info(f"[{horario_atual}] Tentando enviar como foto regular (pode ter bordas brancas)...")
-                url_photo = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendPhoto"
-                
-                with open(foto_path, 'rb') as photo_file:
-                    photo_files = {'photo': photo_file}
-                    photo_payload = {
-                        'chat_id': chat_id,
-                        'parse_mode': 'HTML',
-                        'caption': descricao
-                    }
-                    photo_resposta = requests.post(url_photo, data=photo_payload, files=photo_files)
-                    
-                    if photo_resposta.status_code == 200:
-                        BOT2_LOGGER.info(f"[{horario_atual}] Imagem enviada como foto regular (pode ter perdido transparência)")
-                        return True
-                    else:
-                        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar como foto: {photo_resposta.text}")
-                        return False
+                BOT2_LOGGER.info(f"[{horario_atual}] Sticker {descricao} ENVIADO COM SUCESSO para o canal {chat_id}")
+                return True
     
     except Exception as e:
-        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar imagem {descricao}: {str(e)}")
-        traceback.print_exc()
+        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar sticker {descricao}: {str(e)}")
         return False
 
 # Função para enviar GIF pós-sinal
 def bot2_enviar_gif_pos_sinal():
     """
-    Envia uma foto após cada sinal.
-    Escolhe entre duas fotos: a primeira é enviada em 9 de 10 sinais, a segunda em 1 de 10 sinais.
-    A escolha da foto especial (segunda) é aleatória, garantindo apenas a proporção de 1 a cada 10.
+    Envia um sticker após cada sinal.
+    Escolhe entre dois stickers: o primeiro é enviado em 9 de 10 sinais, o segundo em 1 de 10 sinais.
+    A escolha do sticker especial (segundo) é aleatória, garantindo apenas a proporção de 1 a cada 10.
     """
     global contador_pos_sinal, contador_desde_ultimo_especial
     
     try:
         horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
-        BOT2_LOGGER.info(f"[{horario_atual}] INICIANDO ENVIO DA FOTO PÓS-SINAL...")
+        BOT2_LOGGER.info(f"[{horario_atual}] INICIANDO ENVIO DO STICKER PÓS-SINAL...")
         
         # Incrementar os contadores
         contador_pos_sinal += 1
         contador_desde_ultimo_especial += 1
         
-        # Decidir qual foto enviar (9/10 a primeira, 1/10 a segunda)
-        escolha_foto = 0  # Índice da primeira foto por padrão
+        # Decidir qual sticker enviar (9/10 o primeiro, 1/10 o segundo)
+        escolha_sticker = 0  # Índice do primeiro sticker por padrão
         
-        # Lógica para seleção aleatória da foto especial
+        # Lógica para seleção aleatória do sticker especial
         if contador_desde_ultimo_especial >= 10:
-            # Forçar a foto especial se já passaram 10 sinais desde o último
-            escolha_foto = 1
-            BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO A FOTO ESPECIAL (forçado após 10 sinais)")
+            # Forçar o sticker especial se já passaram 10 sinais desde o último
+            escolha_sticker = 1
+            BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO O STICKER ESPECIAL (forçado após 10 sinais)")
             contador_desde_ultimo_especial = 0
         elif contador_desde_ultimo_especial > 1:
-            # A probabilidade de enviar a foto especial aumenta conforme
+            # A probabilidade de enviar o sticker especial aumenta conforme
             # mais sinais passam sem que o especial seja enviado
             probabilidade = (contador_desde_ultimo_especial - 1) / 10.0
             if random.random() < probabilidade:
-                escolha_foto = 1
-                BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO A FOTO ESPECIAL (aleatório com probabilidade {probabilidade:.2f})")
+                escolha_sticker = 1
+                BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO O STICKER ESPECIAL (aleatório com probabilidade {probabilidade:.2f})")
                 contador_desde_ultimo_especial = 0
             else:
-                BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO A FOTO PADRÃO (probabilidade de especial era {probabilidade:.2f})")
+                BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO O STICKER PADRÃO (probabilidade de especial era {probabilidade:.2f})")
         else:
-            BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO A FOTO PADRÃO (muito cedo para especial)")
+            BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO O STICKER PADRÃO (muito cedo para especial)")
         
         # Loop para enviar aos canais configurados
         for chat_id in BOT2_CHAT_IDS:
-            # Obter o caminho da foto escolhida
-            # Substituir extensão .mp4 por .jpg para as fotos
-            video_path = VIDEOS_POS_SINAL["pt"][escolha_foto]
-            foto_path = video_path.replace(".mp4", ".jpg")
+            # Obter o caminho do sticker escolhido
+            sticker_path = VIDEOS_POS_SINAL["pt"][escolha_sticker]
+            tipo_sticker = "ESPECIAL (1/10)" if escolha_sticker == 1 else "PADRÃO (9/10)"
                 
-            tipo_foto = "ESPECIAL (1/10)" if escolha_foto == 1 else "PADRÃO (9/10)"
-            BOT2_LOGGER.info(f"[{horario_atual}] Caminho da foto escolhida: {foto_path}")
+            BOT2_LOGGER.info(f"[{horario_atual}] Caminho do sticker escolhido: {sticker_path}")
             
-            # Usar a função auxiliar para enviar a foto padronizada
-            descricao = f"PÓS-SINAL {tipo_foto}"
-            if bot2_enviar_foto_padronizada(foto_path, chat_id, descricao, horario_atual):
-                BOT2_LOGGER.info(f"[{horario_atual}] FOTO {descricao} enviada com sucesso para o canal {chat_id}")
+            # Usar a função auxiliar para enviar o sticker
+            descricao = f"PÓS-SINAL {tipo_sticker}"
+            if bot2_enviar_sticker(sticker_path, chat_id, descricao, horario_atual):
+                BOT2_LOGGER.info(f"[{horario_atual}] STICKER {descricao} enviado com sucesso para o canal {chat_id}")
             else:
-                BOT2_LOGGER.error(f"[{horario_atual}] Falha ao enviar FOTO {descricao} para o canal {chat_id}")
+                BOT2_LOGGER.error(f"[{horario_atual}] Falha ao enviar STICKER {descricao} para o canal {chat_id}")
     
     except Exception as e:
         horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
-        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar foto pós-sinal: {str(e)}")
+        BOT2_LOGGER.error(f"[{horario_atual}] Erro ao enviar sticker pós-sinal: {str(e)}")
         traceback.print_exc()
 
 def bot2_enviar_promo_pre_sinal():
