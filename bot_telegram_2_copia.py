@@ -971,8 +971,8 @@ def bot2_enviar_video_padronizado(video_path, chat_id, descricao="", horario_atu
 def bot2_enviar_gif_pos_sinal():
     """
     Envia um sticker após cada sinal.
-    Escolhe entre dois stickers: o primeiro é enviado em 9 de 10 sinais, o segundo em 1 de 10 sinais.
-    A escolha do sticker especial (segundo) é aleatória, garantindo apenas a proporção de 1 a cada 10.
+    - Sticker padrão é enviado constantemente
+    - Sticker especial é enviado a cada 12 sinais
     """
     global contador_pos_sinal, contador_desde_ultimo_especial
     
@@ -980,42 +980,26 @@ def bot2_enviar_gif_pos_sinal():
         horario_atual = bot2_obter_hora_brasilia().strftime("%H:%M:%S")
         BOT2_LOGGER.info(f"[{horario_atual}] INICIANDO ENVIO DO STICKER PÓS-SINAL...")
         
-        # Incrementar os contadores
+        # Incrementar os contadores (mantendo ambos para compatibilidade)
         contador_pos_sinal += 1
         contador_desde_ultimo_especial += 1
-        
-        # Decidir qual sticker enviar (9/10 o primeiro, 1/10 o segundo)
-        escolha_sticker = 0  # Índice do primeiro sticker por padrão
-        
-        # Lógica para seleção aleatória do sticker especial
-        if contador_desde_ultimo_especial >= 10:
-            # Forçar o sticker especial se já passaram 10 sinais desde o último
-            escolha_sticker = 1
-            BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO O STICKER ESPECIAL (forçado após 10 sinais)")
-            contador_desde_ultimo_especial = 0
-        elif contador_desde_ultimo_especial > 1:
-            # A probabilidade de enviar o sticker especial aumenta conforme
-            # mais sinais passam sem que o especial seja enviado
-            probabilidade = (contador_desde_ultimo_especial - 1) / 10.0
-            if random.random() < probabilidade:
-                escolha_sticker = 1
-                BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO O STICKER ESPECIAL (aleatório com probabilidade {probabilidade:.2f})")
-                contador_desde_ultimo_especial = 0
-            else:
-                BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO O STICKER PADRÃO (probabilidade de especial era {probabilidade:.2f})")
-        else:
-            BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO O STICKER PADRÃO (muito cedo para especial)")
+        BOT2_LOGGER.info(f"[{horario_atual}] Contador de sinais atual: {contador_pos_sinal}")
         
         # Loop para enviar aos canais configurados
         for chat_id in BOT2_CHAT_IDS:
-            # Obter o caminho do sticker escolhido
-            sticker_path = VIDEOS_POS_SINAL["pt"][escolha_sticker]
-            tipo_sticker = "ESPECIAL (1/10)" if escolha_sticker == 1 else "PADRÃO (9/10)"
-                
-            BOT2_LOGGER.info(f"[{horario_atual}] Caminho do sticker escolhido: {sticker_path}")
+            # Nova lógica: verificar se é hora de enviar o sticker especial (a cada 12 sinais)
+            if contador_pos_sinal % 12 == 0:
+                BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO O STICKER ESPECIAL (a cada 12 sinais)")
+                sticker_path = VIDEOS_POS_SINAL["pt"][1]  # Sticker especial
+                descricao = "ESPECIAL (A CADA 12 SINAIS)"
+                # Resetar o contador de último especial para manter compatibilidade
+                contador_desde_ultimo_especial = 0
+            else:
+                BOT2_LOGGER.info(f"[{horario_atual}] ENVIANDO O STICKER PADRÃO")
+                sticker_path = VIDEOS_POS_SINAL["pt"][0]  # Sticker padrão
+                descricao = "PADRÃO"
             
             # Usar a função auxiliar para enviar o sticker padronizado
-            descricao = f"PÓS-SINAL {tipo_sticker}"
             if bot2_enviar_sticker_padronizado(sticker_path, chat_id, descricao, horario_atual):
                 BOT2_LOGGER.info(f"[{horario_atual}] STICKER {descricao} enviado com sucesso para o canal {chat_id}")
             else:
