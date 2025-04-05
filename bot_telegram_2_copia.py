@@ -740,6 +740,7 @@ def bot2_gerar_sinal_aleatorio():
 def bot2_formatar_mensagem(sinal, hora_formatada, idioma):
     """
     Formata a mensagem do sinal para o idioma especificado.
+    O horário de entrada (hora_formatada) já está no fuso horário correto do país de destino.
     Retorna a mensagem formatada no idioma correto (pt, en ou es).
     """
     ativo = sinal['ativo']
@@ -761,51 +762,9 @@ def bot2_formatar_mensagem(sinal, hora_formatada, idioma):
     action_es = "PUT" if direcao == 'sell' else "CALL"
     emoji = "🟥" if direcao == 'sell' else "🟢"
 
-    # Hora de entrada convertida para datetime no fuso horário de Brasília
-    hora_entrada_br = datetime.strptime(hora_formatada, "%H:%M")
-    hora_entrada_br = bot2_obter_hora_brasilia().replace(hour=hora_entrada_br.hour, minute=hora_entrada_br.minute, second=0, microsecond=0)
-    
-    # Configurar links e fuso horário baseados no idioma
-    if idioma == "pt":
-        link_corretora = "https://trade.xxbroker.com/register?aff=741613&aff_model=revenue&afftrack="
-        link_video = "https://t.me/trendingbrazil/215"
-        texto_corretora = "Clique para abrir a corretora"
-        texto_video = "Clique aqui"
-        texto_tempo = "TEMPO PARA"
-        texto_gale1 = "1º GALE — TEMPO PARA"
-        texto_gale2 = "2º GALE TEMPO PARA"
-        texto_gale3 = "3º GALE TEMPO PARA"
-        fuso_horario = "America/Sao_Paulo"  # Fuso de Brasília
-    elif idioma == "en":
-        link_corretora = "https://trade.xxbroker.com/register?aff=741727&aff_model=revenue&afftrack="
-        link_video = "https://t.me/trendingenglish/226"
-        texto_corretora = "Click to open broker"
-        texto_video = "Click here"
-        texto_tempo = "TIME UNTIL"
-        texto_gale1 = "1st GALE — TIME UNTIL"
-        texto_gale2 = "2nd GALE TIME UNTIL"
-        texto_gale3 = "3rd GALE TIME UNTIL"
-        fuso_horario = "America/New_York"  # Fuso de Nova York
-    else:  # espanhol
-        link_corretora = "https://trade.xxbroker.com/register?aff=741726&aff_model=revenue&afftrack="
-        link_video = "https://t.me/trendingespanish/212"
-        texto_corretora = "Haga clic para abrir el corredor"
-        texto_video = "Haga clic aquí"
-        texto_tempo = "TIEMPO HASTA"
-        texto_gale1 = "1º GALE — TIEMPO HASTA"
-        texto_gale2 = "2º GALE TIEMPO HASTA"
-        texto_gale3 = "3º GALE TIEMPO HASTA"
-        fuso_horario = "Europe/Madrid"  # Fuso de Madrid
-    
-    # Converter os horários do fuso horário de Brasília para o fuso do canal
-    fuso_brasil = pytz.timezone('America/Sao_Paulo')
-    fuso_destino = pytz.timezone(fuso_horario)
-    
-    # Adicionar informação do fuso horário a hora_entrada_br
-    hora_entrada_br = fuso_brasil.localize(hora_entrada_br)
-    
-    # Converter para o fuso horário do destino
-    hora_entrada = hora_entrada_br.astimezone(fuso_destino)
+    # Hora de entrada já convertida para o fuso horário correto (como string)
+    # Apenas converter para datetime para calcular outros horários
+    hora_entrada = datetime.strptime(hora_formatada, "%H:%M")
     
     # Calcular horário de expiração (primeiro vencimento = hora de entrada + tempo de expiração)
     hora_expiracao = hora_entrada + timedelta(minutes=tempo_expiracao_minutos)
@@ -819,7 +778,7 @@ def bot2_formatar_mensagem(sinal, hora_formatada, idioma):
     hora_gale3 = hora_gale2 + timedelta(minutes=tempo_expiracao_minutos)
     
     # Formatar os horários para exibição
-    hora_entrada_formatada = hora_entrada.strftime("%H:%M")
+    hora_entrada_formatada = hora_formatada  # Usar a que já veio convertida
     hora_expiracao_formatada = hora_expiracao.strftime("%H:%M")
     hora_gale1_formatada = hora_gale1.strftime("%H:%M")
     hora_gale2_formatada = hora_gale2.strftime("%H:%M")
@@ -829,6 +788,35 @@ def bot2_formatar_mensagem(sinal, hora_formatada, idioma):
     texto_minutos_pt = "minuto" if tempo_expiracao_minutos == 1 else "minutos"
     texto_minutos_en = "minute" if tempo_expiracao_minutos == 1 else "minutes"
     texto_minutos_es = "minuto" if tempo_expiracao_minutos == 1 else "minutos"
+
+    # Configurar links baseados no idioma
+    if idioma == "pt":
+        link_corretora = "https://trade.xxbroker.com/register?aff=741613&aff_model=revenue&afftrack="
+        link_video = "https://t.me/trendingbrazil/215"
+        texto_corretora = "Clique para abrir a corretora"
+        texto_video = "Clique aqui"
+        texto_tempo = "TEMPO PARA"
+        texto_gale1 = "1º GALE — TEMPO PARA"
+        texto_gale2 = "2º GALE TEMPO PARA"
+        texto_gale3 = "3º GALE TEMPO PARA"
+    elif idioma == "en":
+        link_corretora = "https://trade.xxbroker.com/register?aff=741727&aff_model=revenue&afftrack="
+        link_video = "https://t.me/trendingenglish/226"
+        texto_corretora = "Click to open broker"
+        texto_video = "Click here"
+        texto_tempo = "TIME UNTIL"
+        texto_gale1 = "1st GALE — TIME UNTIL"
+        texto_gale2 = "2nd GALE TIME UNTIL"
+        texto_gale3 = "3rd GALE TIME UNTIL"
+    else:  # espanhol
+        link_corretora = "https://trade.xxbroker.com/register?aff=741726&aff_model=revenue&afftrack="
+        link_video = "https://t.me/trendingespanish/212"
+        texto_corretora = "Haga clic para abrir el corredor"
+        texto_video = "Haga clic aquí"
+        texto_tempo = "TIEMPO HASTA"
+        texto_gale1 = "1º GALE — TIEMPO HASTA"
+        texto_gale2 = "2º GALE TIEMPO HASTA"
+        texto_gale3 = "3º GALE TIEMPO HASTA"
     
     # Mensagem em PT
     mensagem_pt = (f"💰{tempo_expiracao_minutos} {texto_minutos_pt} de expiração\n"
@@ -1598,7 +1586,7 @@ def bot2_send_message(ignorar_anti_duplicacao=False):
         
         BOT2_LOGGER.info(f"[{horario_atual}] SINAL GERADO. Enviando para todos os canais configurados...")
         
-        # Formatação da hora para exibição
+        # Formatação da hora para exibição (formato string)
         hora_formatada = hora_entrada.strftime("%H:%M")
         
         # Enviar para cada canal
@@ -1606,28 +1594,27 @@ def bot2_send_message(ignorar_anti_duplicacao=False):
             config_canal = BOT2_CANAIS_CONFIG[chat_id]
             idioma = config_canal["idioma"]
             
-            # Obter configuração específica do canal
-            config_canal = BOT2_CANAIS_CONFIG.get(chat_id, {})
-            BOT2_LOGGER.info(f"Configuração do canal {chat_id}: {config_canal}")
-            
-            # Verificar se o canal está habilitado para envio
-            if not config_canal.get("ativo", True):
-                BOT2_LOGGER.info(f"Canal {chat_id} está desativado. Pulando envio.")
-                continue
-            
-            # Verificar se estamos no horário de envio permitido para este canal
-            if not ignorar_anti_duplicacao and (
-                not config_canal.get("permitir_24h", False) and 
-                (agora.hour < 8 or agora.hour >= 21)
-            ):
-                BOT2_LOGGER.info(f"Fora do horário permitido para o canal {chat_id}. Atual: {agora.hour}")
-                continue
-            
             # Obter o fuso horário do canal (padrão: Brasília)
             fuso_horario = config_canal.get("fuso_horario", "America/Sao_Paulo")
-            BOT2_LOGGER.info(f"Usando fuso horário {fuso_horario} para o canal {chat_id}")
+            BOT2_LOGGER.info(f"[{horario_atual}] Usando fuso horário {fuso_horario} para o canal {chat_id}")
             
-            mensagem_formatada = bot2_formatar_mensagem(sinal, hora_formatada, idioma)
+            # Converter o horário de entrada para o fuso horário do canal para exibição
+            fuso_brasil = pytz.timezone('America/Sao_Paulo')
+            fuso_destino = pytz.timezone(fuso_horario)
+            
+            # Adicionar o fuso horário ao datetime
+            hora_entrada_local = fuso_brasil.localize(hora_entrada)
+            
+            # Converter para o fuso horário do destino
+            hora_entrada_destino = hora_entrada_local.astimezone(fuso_destino)
+            
+            # Formatar para usar na mensagem
+            hora_formatada_destino = hora_entrada_destino.strftime("%H:%M")
+            
+            BOT2_LOGGER.info(f"[{horario_atual}] Horário de entrada no fuso de Brasília: {hora_formatada}, convertido para {fuso_horario}: {hora_formatada_destino}")
+            
+            # Formatar mensagem usando o horário convertido
+            mensagem_formatada = bot2_formatar_mensagem(sinal, hora_formatada_destino, idioma)
             url_base = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendMessage"
             
             # Registrar envio nos logs
