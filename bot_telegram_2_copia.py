@@ -1830,13 +1830,65 @@ def bot2_keep_bot_running():
         traceback.print_exc()
 
 def bot2_schedule_messages():
-    """Agenda as mensagens do Bot 2 para envio nos intervalos específicos."""
+    """
+    Agenda as mensagens do Bot 2 para envio nos intervalos específicos.
+    """
     try:
         if hasattr(bot2_schedule_messages, 'scheduled'):
             BOT2_LOGGER.info("Agendamentos já existentes. Pulando...")
             return
 
         BOT2_LOGGER.info("Iniciando agendamento de mensagens para o Bot 2")
+        
+        # Log de equivalência de horários para depuração
+        agora = bot2_obter_hora_brasilia()
+        mes_atual = agora.month
+        BOT2_LOGGER.info(f"=== TABELA DE EQUIVALÊNCIA DE FUSOS HORÁRIOS (MÊS ATUAL: {mes_atual}) ===")
+        hora_exemplo = agora.replace(hour=15, minute=0, second=0, microsecond=0)  # 15:00 em Brasília
+        
+        # Calcular horários equivalentes
+        hora_ny = None
+        hora_madrid = None
+        
+        # Verificar horário de verão EUA
+        horario_verao_eua = False
+        if mes_atual in [4, 5, 6, 7, 8, 9, 10]:
+            horario_verao_eua = True
+        elif mes_atual == 3 and agora.day >= 14:  # Aproximação do segundo domingo
+            horario_verao_eua = True
+        elif mes_atual == 11 and agora.day <= 7:  # Aproximação do primeiro domingo
+            horario_verao_eua = True
+            
+        # Verificar horário de verão Europa
+        horario_verao_europa = False
+        if mes_atual in [4, 5, 6, 7, 8, 9]:
+            horario_verao_europa = True
+        elif mes_atual == 3 and agora.day >= 25:  # Aproximação do último domingo
+            horario_verao_europa = True
+        elif mes_atual == 10 and agora.day <= 25:  # Aproximação do último domingo
+            horario_verao_europa = True
+            
+        # Calcular equivalentes
+        if horario_verao_eua:
+            hora_ny = hora_exemplo - timedelta(hours=1)
+            BOT2_LOGGER.info(f"  - EUA em horário de verão: diferença de -1h em relação ao Brasil")
+        else:
+            hora_ny = hora_exemplo - timedelta(hours=2)
+            BOT2_LOGGER.info(f"  - EUA em horário normal: diferença de -2h em relação ao Brasil")
+            
+        if horario_verao_europa:
+            hora_madrid = hora_exemplo + timedelta(hours=5)
+            BOT2_LOGGER.info(f"  - Europa em horário de verão: diferença de +5h em relação ao Brasil")
+        else:
+            hora_madrid = hora_exemplo + timedelta(hours=4)
+            BOT2_LOGGER.info(f"  - Europa em horário normal: diferença de +4h em relação ao Brasil")
+            
+        # Exibir tabela de equivalências
+        BOT2_LOGGER.info(f"  Quando for 15:00 no Brasil:")
+        BOT2_LOGGER.info(f"  - No Brasil (PT): {hora_exemplo.strftime('%H:%M')}")
+        BOT2_LOGGER.info(f"  - Nos EUA (EN): {hora_ny.strftime('%H:%M')}")
+        BOT2_LOGGER.info(f"  - Na Espanha (ES): {hora_madrid.strftime('%H:%M')}")
+        BOT2_LOGGER.info(f"=== FIM DA TABELA DE EQUIVALÊNCIA ===")
         
         # Definir o minuto para envio dos sinais (sempre 3 minutos antes de um horário que termina em 0 ou 5)
         # Para terminar em 15, enviar no minuto 13
@@ -1845,7 +1897,7 @@ def bot2_schedule_messages():
         # Agendar 1 sinal por hora, no minuto definido
         for hora in range(0, 24):
             schedule.every().day.at(f"{hora:02d}:{minuto_envio:02d}:02").do(bot2_send_message)
-            BOT2_LOGGER.info(f"Sinal agendado: {hora:02d}:{minuto_envio:02d}:02 (horário de entrada: {hora:02d}:15)")
+            BOT2_LOGGER.info(f"Sinal agendado: {hora:02d}:{minuto_envio:02d}:02 (horário de entrada: {hora:02d}:{minuto_envio+2:02d})")
 
         bot2_schedule_messages.scheduled = True
         BOT2_LOGGER.info("Agendamento de mensagens do Bot 2 concluído com sucesso")
