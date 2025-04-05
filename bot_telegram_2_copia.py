@@ -23,6 +23,7 @@ import logging
 import sys
 import os
 from functools import lru_cache
+import re
 
 # Configuração do logger específico para o Bot 2
 BOT2_LOGGER = logging.getLogger('bot2')
@@ -760,6 +761,8 @@ def bot2_converter_fuso_horario(hora_brasilia, fuso_destino):
     fuso_destino_tz = pytz.timezone(fuso_destino)
     hora_destino = hora_brasilia.astimezone(fuso_destino_tz)
     
+    BOT2_LOGGER.info(f"[DEBUG-FUSO] Convertendo: {hora_brasilia.strftime('%H:%M')} (BR) -> {hora_destino.strftime('%H:%M')} ({fuso_destino})")
+    
     return hora_destino
 
 def bot2_formatar_mensagem(sinal, hora_formatada, idioma):
@@ -796,8 +799,12 @@ def bot2_formatar_mensagem(sinal, hora_formatada, idioma):
             break
     
     # Hora de entrada convertida para datetime no fuso horário de Brasília
-    hora_entrada = datetime.strptime(hora_formatada, "%H:%M")
-    hora_entrada_br = bot2_obter_hora_brasilia().replace(hour=hora_entrada.hour, minute=hora_entrada.minute, second=0, microsecond=0)
+    data_atual_br = bot2_obter_hora_brasilia().date()
+    hora_entrada = datetime.strptime(hora_formatada, "%H:%M").replace(year=data_atual_br.year, month=data_atual_br.month, day=data_atual_br.day)
+    
+    # Adicionar informação de fuso horário à hora de entrada
+    fuso_horario_brasilia = pytz.timezone('America/Sao_Paulo')
+    hora_entrada_br = fuso_horario_brasilia.localize(hora_entrada)
     
     # Converter para o fuso horário do canal
     hora_entrada_local = bot2_converter_fuso_horario(hora_entrada_br, fuso_horario)
@@ -829,6 +836,9 @@ def bot2_formatar_mensagem(sinal, hora_formatada, idioma):
     hora_gale3_formatada = hora_gale3_local.strftime("%H:%M")
     
     # Registrar a conversão de fuso horário
+    BOT2_LOGGER.info(f"[DEBUG] Fuso horário do canal: {fuso_horario}")
+    BOT2_LOGGER.info(f"[DEBUG] Hora de entrada original (BR): {hora_entrada_br} ({hora_entrada_br.tzinfo})")
+    BOT2_LOGGER.info(f"[DEBUG] Hora de entrada convertida: {hora_entrada_local} ({hora_entrada_local.tzinfo})")
     BOT2_LOGGER.info(f"Horários convertidos para fuso {fuso_horario}: Entrada={hora_entrada_formatada}, " +
                      f"Expiração={hora_expiracao_formatada}, Gale1={hora_gale1_formatada}, " +
                      f"Gale2={hora_gale2_formatada}, Gale3={hora_gale3_formatada}")
@@ -1615,9 +1625,10 @@ def bot2_send_message(ignorar_anti_duplicacao=False):
                 ajuste = 10 - ultimo_digito
             minuto_entrada += ajuste
         
-        # Criar o novo horário de entrada ajustado
+        # Criar o novo horário de entrada ajustado (mantendo o fuso horário)
         hora_entrada = hora_entrada.replace(minute=minuto_entrada, second=0, microsecond=0)
         BOT2_LOGGER.info(f"[{horario_atual}] Horário de entrada ajustado para {hora_entrada.strftime('%H:%M')} (2 minutos após o sinal + ajuste para terminar em 0 ou 5)")
+        BOT2_LOGGER.info(f"[DEBUG] Informação de fuso horário da hora_entrada: {hora_entrada.tzinfo}")
         
         hora_expiracao = hora_entrada + timedelta(minutes=tempo_expiracao_minutos)
         expiracao_time = hora_expiracao
@@ -1637,11 +1648,19 @@ def bot2_send_message(ignorar_anti_duplicacao=False):
         
         # Formatação da hora para exibição
         hora_formatada = hora_entrada.strftime("%H:%M")
+        BOT2_LOGGER.info(f"[DEBUG] Hora formatada para envio: {hora_formatada}")
         
         # Enviar para cada canal
         for chat_id in BOT2_CHAT_IDS:
             config_canal = BOT2_CANAIS_CONFIG[chat_id]
             idioma = config_canal["idioma"]
+            fuso_horario = config_canal.get("fuso_horario", "America/Sao_Paulo")
+            
+            BOT2_LOGGER.info(f"[DEBUG] Enviando para canal {chat_id} com idioma {idioma} e fuso horário {fuso_horario}")
+            
+            # Verificar se o fuso horário do canal é diferente do Brasil
+            if fuso_horario != "America/Sao_Paulo":
+                BOT2_LOGGER.info(f"[DEBUG] Fuso horário diferente do Brasil, convertendo horários...")
             
             mensagem_formatada = bot2_formatar_mensagem(sinal, hora_formatada, idioma)
             url_base = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendMessage"
@@ -1980,3 +1999,53 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Erro ao iniciar bots: {str(e)}")
         traceback.print_exc()
+
+def bot2_testar_conversao_fuso():
+    """
+    Função para testar a conversão de fusos horários e verificar se está funcionando corretamente.
+    """
+    BOT2_LOGGER.info("======= TESTE DE CONVERSÃO DE FUSO HORÁRIO =======")
+    
+    # Hora de teste (18:15 no horário de Brasília)
+    hora_teste_br = datetime.strptime("18:15", "%H:%M")
+    data_atual = bot2_obter_hora_brasilia().date()
+    hora_completa_br = datetime.combine(data_atual, hora_teste_br.time())
+    
+    # Adicionar fuso horário
+    fuso_br = pytz.timezone("America/Sao_Paulo")
+    hora_completa_br = fuso_br.localize(hora_completa_br)
+    
+    BOT2_LOGGER.info(f"Hora original (Brasília): {hora_completa_br.strftime('%H:%M')} ({hora_completa_br.tzinfo})")
+    
+    # Testar conversão para NY
+    fuso_ny = "America/New_York"
+    hora_ny = bot2_converter_fuso_horario(hora_completa_br, fuso_ny)
+    BOT2_LOGGER.info(f"Hora em NY: {hora_ny.strftime('%H:%M')} ({hora_ny.tzinfo})")
+    
+    # Testar conversão para Madrid
+    fuso_madrid = "Europe/Madrid"
+    hora_madrid = bot2_converter_fuso_horario(hora_completa_br, fuso_madrid)
+    BOT2_LOGGER.info(f"Hora em Madrid: {hora_madrid.strftime('%H:%M')} ({hora_madrid.tzinfo})")
+    
+    # Calcular e exibir as diferenças de fuso horário
+    diferenca_ny = (hora_completa_br.hour - hora_ny.hour) % 24
+    diferenca_madrid = (hora_completa_br.hour - hora_madrid.hour) % 24
+    
+    BOT2_LOGGER.info(f"Diferença Brasil -> NY: {diferenca_ny} horas")
+    BOT2_LOGGER.info(f"Diferença Brasil -> Madrid: {diferenca_madrid} horas")
+    
+    # Demonstrar como as mensagens serão mostradas em diferentes canais
+    horarios = {
+        "Brasil (PT)": hora_completa_br.strftime('%H:%M'),
+        "EUA (EN)": hora_ny.strftime('%H:%M'),
+        "Espanha (ES)": hora_madrid.strftime('%H:%M')
+    }
+    
+    BOT2_LOGGER.info(f"Exemplo de horários nas mensagens:")
+    for canal, hora in horarios.items():
+        BOT2_LOGGER.info(f"  - Canal {canal}: Horário mostrado = {hora}")
+    
+    BOT2_LOGGER.info("=================================================")
+
+# Executar o teste ao iniciar o script
+bot2_testar_conversao_fuso()
