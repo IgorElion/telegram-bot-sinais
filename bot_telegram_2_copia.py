@@ -47,17 +47,17 @@ BOT2_CANAIS_CONFIG = {
     "-1002424874613": {  # Canal para mensagens em português
         "idioma": "pt",
         "link_corretora": "https://trade.xxbroker.com/register?aff=741613&aff_model=revenue&afftrack=",
-        "fuso_horario": "America/Sao_Paulo"  # Horário de Brasília (UTC-3)
+        "fuso_horario": "America/Sao_Paulo"  # Brasil (UTC-3)
     },
     "-1002453956387": {  # Canal para mensagens em inglês
         "idioma": "en",
         "link_corretora": "https://trade.xxbroker.com/register?aff=741727&aff_model=revenue&afftrack=",
-        "fuso_horario": "America/New_York"  # Horário de Nova York (UTC-4/UTC-5)
+        "fuso_horario": "America/New_York"  # EUA (UTC-5 ou UTC-4 no horário de verão)
     },
     "-1002446547846": {  # Canal para mensagens em espanhol
         "idioma": "es",
         "link_corretora": "https://trade.xxbroker.com/register?aff=741726&aff_model=revenue&afftrack=",
-        "fuso_horario": "Europe/Madrid"  # Horário de Madri (UTC+1/UTC+2)
+        "fuso_horario": "Europe/Madrid"  # Espanha (UTC+1 ou UTC+2 no horário de verão)
     }
 }
 
@@ -737,10 +737,34 @@ def bot2_gerar_sinal_aleatorio():
         'tempo_expiracao_minutos': int(tempo_expiracao_minutos)  # Garante que seja inteiro
     }
 
+# Função para obter hora no fuso horário específico (a partir da hora de Brasília)
+def bot2_converter_fuso_horario(hora_brasilia, fuso_destino):
+    """
+    Converte uma hora do fuso horário de Brasília para o fuso horário de destino.
+    
+    Args:
+        hora_brasilia (datetime): Hora no fuso horário de Brasília
+        fuso_destino (str): Nome do fuso horário de destino (ex: 'America/New_York')
+        
+    Returns:
+        datetime: Hora convertida para o fuso horário de destino
+    """
+    # Garantir que hora_brasilia tenha informações de fuso horário
+    fuso_horario_brasilia = pytz.timezone('America/Sao_Paulo')
+    
+    # Se a hora não tiver informação de fuso, adicionar
+    if hora_brasilia.tzinfo is None:
+        hora_brasilia = fuso_horario_brasilia.localize(hora_brasilia)
+    
+    # Converter para o fuso horário de destino
+    fuso_destino_tz = pytz.timezone(fuso_destino)
+    hora_destino = hora_brasilia.astimezone(fuso_destino_tz)
+    
+    return hora_destino
+
 def bot2_formatar_mensagem(sinal, hora_formatada, idioma):
     """
     Formata a mensagem do sinal para o idioma especificado.
-    O horário de entrada (hora_formatada) já está no fuso horário correto do país de destino.
     Retorna a mensagem formatada no idioma correto (pt, en ou es).
     """
     ativo = sinal['ativo']
@@ -762,27 +786,52 @@ def bot2_formatar_mensagem(sinal, hora_formatada, idioma):
     action_es = "PUT" if direcao == 'sell' else "CALL"
     emoji = "🟥" if direcao == 'sell' else "🟢"
 
-    # Hora de entrada já convertida para o fuso horário correto (como string)
-    # Apenas converter para datetime para calcular outros horários
+    # Encontrar o fuso horário adequado para o idioma
+    fuso_horario = "America/Sao_Paulo"  # Padrão (Brasil)
+    
+    # Buscar o fuso horário na configuração dos canais
+    for chat_id, config in BOT2_CANAIS_CONFIG.items():
+        if config["idioma"] == idioma:
+            fuso_horario = config.get("fuso_horario", "America/Sao_Paulo")
+            break
+    
+    # Hora de entrada convertida para datetime no fuso horário de Brasília
     hora_entrada = datetime.strptime(hora_formatada, "%H:%M")
+    hora_entrada_br = bot2_obter_hora_brasilia().replace(hour=hora_entrada.hour, minute=hora_entrada.minute, second=0, microsecond=0)
     
-    # Calcular horário de expiração (primeiro vencimento = hora de entrada + tempo de expiração)
-    hora_expiracao = hora_entrada + timedelta(minutes=tempo_expiracao_minutos)
+    # Converter para o fuso horário do canal
+    hora_entrada_local = bot2_converter_fuso_horario(hora_entrada_br, fuso_horario)
     
-    # Calcular horários de gale (reentrada)
+    # Calcular horário de expiração no fuso horário de Brasília
+    hora_expiracao_br = hora_entrada_br + timedelta(minutes=tempo_expiracao_minutos)
+    
+    # Converter expiração para o fuso horário do canal
+    hora_expiracao_local = bot2_converter_fuso_horario(hora_expiracao_br, fuso_horario)
+    
+    # Calcular horários de gale (reentrada) no fuso horário de Brasília
     # 1º GALE é o horário de expiração + tempo de expiração
-    hora_gale1 = hora_expiracao + timedelta(minutes=tempo_expiracao_minutos)
+    hora_gale1_br = hora_expiracao_br + timedelta(minutes=tempo_expiracao_minutos)
     # 2º GALE é o 1º GALE + tempo de expiração
-    hora_gale2 = hora_gale1 + timedelta(minutes=tempo_expiracao_minutos)
+    hora_gale2_br = hora_gale1_br + timedelta(minutes=tempo_expiracao_minutos)
     # 3º GALE é o 2º GALE + tempo de expiração
-    hora_gale3 = hora_gale2 + timedelta(minutes=tempo_expiracao_minutos)
+    hora_gale3_br = hora_gale2_br + timedelta(minutes=tempo_expiracao_minutos)
     
-    # Formatar os horários para exibição
-    hora_entrada_formatada = hora_formatada  # Usar a que já veio convertida
-    hora_expiracao_formatada = hora_expiracao.strftime("%H:%M")
-    hora_gale1_formatada = hora_gale1.strftime("%H:%M")
-    hora_gale2_formatada = hora_gale2.strftime("%H:%M")
-    hora_gale3_formatada = hora_gale3.strftime("%H:%M")
+    # Converter gales para o fuso horário do canal
+    hora_gale1_local = bot2_converter_fuso_horario(hora_gale1_br, fuso_horario)
+    hora_gale2_local = bot2_converter_fuso_horario(hora_gale2_br, fuso_horario)
+    hora_gale3_local = bot2_converter_fuso_horario(hora_gale3_br, fuso_horario)
+    
+    # Formatar os horários para exibição (no fuso horário local)
+    hora_entrada_formatada = hora_entrada_local.strftime("%H:%M")
+    hora_expiracao_formatada = hora_expiracao_local.strftime("%H:%M")
+    hora_gale1_formatada = hora_gale1_local.strftime("%H:%M")
+    hora_gale2_formatada = hora_gale2_local.strftime("%H:%M")
+    hora_gale3_formatada = hora_gale3_local.strftime("%H:%M")
+    
+    # Registrar a conversão de fuso horário
+    BOT2_LOGGER.info(f"Horários convertidos para fuso {fuso_horario}: Entrada={hora_entrada_formatada}, " +
+                     f"Expiração={hora_expiracao_formatada}, Gale1={hora_gale1_formatada}, " +
+                     f"Gale2={hora_gale2_formatada}, Gale3={hora_gale3_formatada}")
 
     # Formatação para singular ou plural de "minuto" baseado no tempo de expiração
     texto_minutos_pt = "minuto" if tempo_expiracao_minutos == 1 else "minutos"
@@ -1586,7 +1635,7 @@ def bot2_send_message(ignorar_anti_duplicacao=False):
         
         BOT2_LOGGER.info(f"[{horario_atual}] SINAL GERADO. Enviando para todos os canais configurados...")
         
-        # Formatação da hora para exibição (formato string)
+        # Formatação da hora para exibição
         hora_formatada = hora_entrada.strftime("%H:%M")
         
         # Enviar para cada canal
@@ -1594,27 +1643,7 @@ def bot2_send_message(ignorar_anti_duplicacao=False):
             config_canal = BOT2_CANAIS_CONFIG[chat_id]
             idioma = config_canal["idioma"]
             
-            # Obter o fuso horário do canal (padrão: Brasília)
-            fuso_horario = config_canal.get("fuso_horario", "America/Sao_Paulo")
-            BOT2_LOGGER.info(f"[{horario_atual}] Usando fuso horário {fuso_horario} para o canal {chat_id}")
-            
-            # Converter o horário de entrada para o fuso horário do canal para exibição
-            fuso_brasil = pytz.timezone('America/Sao_Paulo')
-            fuso_destino = pytz.timezone(fuso_horario)
-            
-            # Adicionar o fuso horário ao datetime
-            hora_entrada_local = fuso_brasil.localize(hora_entrada)
-            
-            # Converter para o fuso horário do destino
-            hora_entrada_destino = hora_entrada_local.astimezone(fuso_destino)
-            
-            # Formatar para usar na mensagem
-            hora_formatada_destino = hora_entrada_destino.strftime("%H:%M")
-            
-            BOT2_LOGGER.info(f"[{horario_atual}] Horário de entrada no fuso de Brasília: {hora_formatada}, convertido para {fuso_horario}: {hora_formatada_destino}")
-            
-            # Formatar mensagem usando o horário convertido
-            mensagem_formatada = bot2_formatar_mensagem(sinal, hora_formatada_destino, idioma)
+            mensagem_formatada = bot2_formatar_mensagem(sinal, hora_formatada, idioma)
             url_base = f"https://api.telegram.org/bot{BOT2_TOKEN}/sendMessage"
             
             # Registrar envio nos logs
