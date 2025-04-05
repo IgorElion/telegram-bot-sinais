@@ -789,33 +789,27 @@ def bot2_formatar_mensagem(sinal, hora_formatada, idioma):
     action_es = "PUT" if direcao == 'sell' else "CALL"
     emoji = "🟥" if direcao == 'sell' else "🟢"
 
-    # Encontrar o fuso horário adequado para o idioma
+    # Buscar o fuso horário na configuração dos canais (apenas para log, não será usado para cálculo)
     fuso_horario = "America/Sao_Paulo"  # Padrão (Brasil)
-    
-    # Buscar o fuso horário na configuração dos canais
     for chat_id, config in BOT2_CANAIS_CONFIG.items():
         if config["idioma"] == idioma:
             fuso_horario = config.get("fuso_horario", "America/Sao_Paulo")
             break
     
-    # Hora de entrada convertida para datetime no fuso horário de Brasília
+    # Hora de entrada convertida para datetime
     data_atual_br = bot2_obter_hora_brasilia().date()
     hora_entrada = datetime.strptime(hora_formatada, "%H:%M").replace(year=data_atual_br.year, month=data_atual_br.month, day=data_atual_br.day)
     
-    # Adicionar informação de fuso horário à hora de entrada
-    fuso_horario_brasilia = pytz.timezone('America/Sao_Paulo')
-    hora_entrada_br = fuso_horario_brasilia.localize(hora_entrada)
-    
-    # Converter para o fuso horário do canal
-    hora_entrada_local = bot2_converter_fuso_horario(hora_entrada_br, fuso_horario)
+    # Usar a função de ajuste manual para ajustar os horários
+    hora_entrada_local = bot2_ajustar_horario_manual(hora_entrada, idioma)
     
     # Calcular horário de expiração no fuso horário de Brasília
-    hora_expiracao_br = hora_entrada_br + timedelta(minutes=tempo_expiracao_minutos)
+    hora_expiracao_br = hora_entrada + timedelta(minutes=tempo_expiracao_minutos)
     
-    # Converter expiração para o fuso horário do canal
-    hora_expiracao_local = bot2_converter_fuso_horario(hora_expiracao_br, fuso_horario)
+    # Ajustar manualmente o horário de expiração
+    hora_expiracao_local = bot2_ajustar_horario_manual(hora_expiracao_br, idioma)
     
-    # Calcular horários de gale (reentrada) no fuso horário de Brasília
+    # Calcular horários de gale (reentrada)
     # 1º GALE é o horário de expiração + tempo de expiração
     hora_gale1_br = hora_expiracao_br + timedelta(minutes=tempo_expiracao_minutos)
     # 2º GALE é o 1º GALE + tempo de expiração
@@ -823,12 +817,12 @@ def bot2_formatar_mensagem(sinal, hora_formatada, idioma):
     # 3º GALE é o 2º GALE + tempo de expiração
     hora_gale3_br = hora_gale2_br + timedelta(minutes=tempo_expiracao_minutos)
     
-    # Converter gales para o fuso horário do canal
-    hora_gale1_local = bot2_converter_fuso_horario(hora_gale1_br, fuso_horario)
-    hora_gale2_local = bot2_converter_fuso_horario(hora_gale2_br, fuso_horario)
-    hora_gale3_local = bot2_converter_fuso_horario(hora_gale3_br, fuso_horario)
+    # Ajustar manualmente os horários dos gales
+    hora_gale1_local = bot2_ajustar_horario_manual(hora_gale1_br, idioma)
+    hora_gale2_local = bot2_ajustar_horario_manual(hora_gale2_br, idioma)
+    hora_gale3_local = bot2_ajustar_horario_manual(hora_gale3_br, idioma)
     
-    # Formatar os horários para exibição (no fuso horário local)
+    # Formatar os horários para exibição
     hora_entrada_formatada = hora_entrada_local.strftime("%H:%M")
     hora_expiracao_formatada = hora_expiracao_local.strftime("%H:%M")
     hora_gale1_formatada = hora_gale1_local.strftime("%H:%M")
@@ -836,10 +830,10 @@ def bot2_formatar_mensagem(sinal, hora_formatada, idioma):
     hora_gale3_formatada = hora_gale3_local.strftime("%H:%M")
     
     # Registrar a conversão de fuso horário
-    BOT2_LOGGER.info(f"[DEBUG] Fuso horário do canal: {fuso_horario}")
-    BOT2_LOGGER.info(f"[DEBUG] Hora de entrada original (BR): {hora_entrada_br} ({hora_entrada_br.tzinfo})")
-    BOT2_LOGGER.info(f"[DEBUG] Hora de entrada convertida: {hora_entrada_local} ({hora_entrada_local.tzinfo})")
-    BOT2_LOGGER.info(f"Horários convertidos para fuso {fuso_horario}: Entrada={hora_entrada_formatada}, " +
+    BOT2_LOGGER.info(f"[DEBUG] Usando ajuste manual para o canal de idioma: {idioma}")
+    BOT2_LOGGER.info(f"[DEBUG] Hora de entrada original (BR): {hora_entrada.strftime('%H:%M')}")
+    BOT2_LOGGER.info(f"[DEBUG] Hora de entrada ajustada: {hora_entrada_formatada}")
+    BOT2_LOGGER.info(f"Horários ajustados para {idioma}: Entrada={hora_entrada_formatada}, " +
                      f"Expiração={hora_expiracao_formatada}, Gale1={hora_gale1_formatada}, " +
                      f"Gale2={hora_gale2_formatada}, Gale3={hora_gale3_formatada}")
 
@@ -2007,45 +2001,166 @@ def bot2_testar_conversao_fuso():
     BOT2_LOGGER.info("======= TESTE DE CONVERSÃO DE FUSO HORÁRIO =======")
     
     # Hora de teste (18:15 no horário de Brasília)
-    hora_teste_br = datetime.strptime("18:15", "%H:%M")
+    hora_teste = datetime.strptime("18:15", "%H:%M")
     data_atual = bot2_obter_hora_brasilia().date()
-    hora_completa_br = datetime.combine(data_atual, hora_teste_br.time())
+    hora_completa = hora_teste.replace(year=data_atual.year, month=data_atual.month, day=data_atual.day)
     
-    # Adicionar fuso horário
-    fuso_br = pytz.timezone("America/Sao_Paulo")
-    hora_completa_br = fuso_br.localize(hora_completa_br)
+    BOT2_LOGGER.info(f"Hora original (Brasília): {hora_completa.strftime('%H:%M')}")
     
-    BOT2_LOGGER.info(f"Hora original (Brasília): {hora_completa_br.strftime('%H:%M')} ({hora_completa_br.tzinfo})")
+    # Testar conversão manual para inglês (EUA)
+    hora_en = bot2_ajustar_horario_manual(hora_completa, "en")
+    BOT2_LOGGER.info(f"Hora em NY (ajuste manual): {hora_en.strftime('%H:%M')}")
     
-    # Testar conversão para NY
-    fuso_ny = "America/New_York"
-    hora_ny = bot2_converter_fuso_horario(hora_completa_br, fuso_ny)
-    BOT2_LOGGER.info(f"Hora em NY: {hora_ny.strftime('%H:%M')} ({hora_ny.tzinfo})")
-    
-    # Testar conversão para Madrid
-    fuso_madrid = "Europe/Madrid"
-    hora_madrid = bot2_converter_fuso_horario(hora_completa_br, fuso_madrid)
-    BOT2_LOGGER.info(f"Hora em Madrid: {hora_madrid.strftime('%H:%M')} ({hora_madrid.tzinfo})")
+    # Testar conversão manual para espanhol (Espanha)
+    hora_es = bot2_ajustar_horario_manual(hora_completa, "es")
+    BOT2_LOGGER.info(f"Hora em Madrid (ajuste manual): {hora_es.strftime('%H:%M')}")
     
     # Calcular e exibir as diferenças de fuso horário
-    diferenca_ny = (hora_completa_br.hour - hora_ny.hour) % 24
-    diferenca_madrid = (hora_completa_br.hour - hora_madrid.hour) % 24
+    diferenca_ny = (hora_completa.hour - hora_en.hour) % 24
+    diferenca_madrid = (hora_es.hour - hora_completa.hour) % 24
     
     BOT2_LOGGER.info(f"Diferença Brasil -> NY: {diferenca_ny} horas")
-    BOT2_LOGGER.info(f"Diferença Brasil -> Madrid: {diferenca_madrid} horas")
+    BOT2_LOGGER.info(f"Diferença Madrid -> Brasil: {diferenca_madrid} horas")
     
     # Demonstrar como as mensagens serão mostradas em diferentes canais
     horarios = {
-        "Brasil (PT)": hora_completa_br.strftime('%H:%M'),
-        "EUA (EN)": hora_ny.strftime('%H:%M'),
-        "Espanha (ES)": hora_madrid.strftime('%H:%M')
+        "Brasil (PT)": hora_completa.strftime('%H:%M'),
+        "EUA (EN)": hora_en.strftime('%H:%M'),
+        "Espanha (ES)": hora_es.strftime('%H:%M')
     }
     
     BOT2_LOGGER.info(f"Exemplo de horários nas mensagens:")
     for canal, hora in horarios.items():
         BOT2_LOGGER.info(f"  - Canal {canal}: Horário mostrado = {hora}")
     
+    # Testar diferentes meses para ver o comportamento do horário de verão
+    meses_teste = [1, 3, 5, 7, 10, 12]  # Janeiro, Março, Maio, Julho, Outubro, Dezembro
+    
+    BOT2_LOGGER.info("\nTeste de ajuste de horário para diferentes meses do ano:")
+    
+    for mes in meses_teste:
+        # Criar uma data com o mês específico
+        data_teste = datetime(data_atual.year, mes, 15, 12, 0)  # 15º dia do mês às 12:00
+        
+        # Ajustar para os diferentes idiomas
+        hora_en_mes = bot2_ajustar_horario_manual(data_teste, "en")
+        hora_es_mes = bot2_ajustar_horario_manual(data_teste, "es")
+        
+        BOT2_LOGGER.info(f"Mês {mes}:")
+        BOT2_LOGGER.info(f"  - Brasil (PT): {data_teste.strftime('%H:%M')}")
+        BOT2_LOGGER.info(f"  - EUA (EN): {hora_en_mes.strftime('%H:%M')} (diferença: {(data_teste.hour - hora_en_mes.hour) % 24}h)")
+        BOT2_LOGGER.info(f"  - Espanha (ES): {hora_es_mes.strftime('%H:%M')} (diferença: {(hora_es_mes.hour - data_teste.hour) % 24}h)")
+    
     BOT2_LOGGER.info("=================================================")
 
 # Executar o teste ao iniciar o script
 bot2_testar_conversao_fuso()
+
+# Adicionar após a função bot2_obter_hora_brasilia
+
+def bot2_ajustar_horario_manual(hora_brasilia, idioma):
+    """
+    Ajusta o horário de Brasília manualmente para o fuso horário correspondente ao idioma,
+    considerando o mês atual e o horário de verão dos países.
+    
+    Args:
+        hora_brasilia (datetime): Hora no horário de Brasília
+        idioma (str): Idioma do canal (pt, en, es)
+        
+    Returns:
+        datetime: Hora ajustada para o fuso horário do idioma
+    """
+    # Clonar o datetime original para não modificá-lo
+    hora_ajustada = hora_brasilia.replace()
+    
+    # Se for português (Brasil), não precisa ajustar
+    if idioma == "pt":
+        return hora_ajustada
+    
+    # Obter o mês atual
+    mes_atual = hora_brasilia.month
+    
+    # Ajustar para o horário dos Estados Unidos (canal inglês)
+    if idioma == "en":
+        # Verificar se é horário de verão nos EUA (segundo domingo de março até primeiro domingo de novembro)
+        horario_verao_eua = False
+        if mes_atual in [3, 4, 5, 6, 7, 8, 9, 10]:
+            # Durante esses meses é sempre horário de verão
+            horario_verao_eua = True
+        elif mes_atual == 11:
+            # Verificar se ainda é horário de verão em novembro (primeiro domingo)
+            dia = hora_brasilia.day
+            dia_semana = hora_brasilia.weekday()
+            # Verificar se ainda não chegou ao primeiro domingo
+            primeiro_domingo = 7 - ((dia - dia_semana) % 7)
+            if primeiro_domingo == 7:
+                primeiro_domingo = 0
+            if dia <= primeiro_domingo:
+                horario_verao_eua = True
+        elif mes_atual == 3:
+            # Verificar se já começou o horário de verão em março (segundo domingo)
+            dia = hora_brasilia.day
+            dia_semana = hora_brasilia.weekday()
+            # Calcular o segundo domingo do mês
+            segundo_domingo = 14 - ((dia - dia_semana) % 7)
+            if segundo_domingo == 14:
+                segundo_domingo = 7
+            if dia >= segundo_domingo:
+                horario_verao_eua = True
+        
+        # Aplicar o ajuste de horário correspondente
+        if horario_verao_eua:
+            # Durante o horário de verão nos EUA: Brasília UTC-3, NY UTC-4 = diferença de 1 hora
+            hora_ajustada = hora_ajustada - timedelta(hours=1)
+            BOT2_LOGGER.info(f"[FUSO-MANUAL] Aplicando diferença de -1 hora para EUA (horário de verão)")
+        else:
+            # Fora do horário de verão nos EUA: Brasília UTC-3, NY UTC-5 = diferença de 2 horas
+            hora_ajustada = hora_ajustada - timedelta(hours=2)
+            BOT2_LOGGER.info(f"[FUSO-MANUAL] Aplicando diferença de -2 horas para EUA (horário normal)")
+            
+    # Ajustar para o horário da Espanha (canal espanhol)
+    elif idioma == "es":
+        # Verificar se é horário de verão na Europa (último domingo de março até último domingo de outubro)
+        horario_verao_europa = False
+        if mes_atual in [4, 5, 6, 7, 8, 9]:
+            # Durante esses meses é sempre horário de verão
+            horario_verao_europa = True
+        elif mes_atual == 3:
+            # Verificar se já começou o horário de verão em março (último domingo)
+            dia = hora_brasilia.day
+            dias_no_mes = 31  # março tem 31 dias
+            # Verificar se estamos na última semana
+            if dia > (dias_no_mes - 7):
+                dia_semana = hora_brasilia.weekday()
+                # Último domingo é o domingo mais próximo do final do mês
+                ultimo_domingo = dias_no_mes - dia_semana
+                if dia >= ultimo_domingo:
+                    horario_verao_europa = True
+        elif mes_atual == 10:
+            # Verificar se ainda é horário de verão em outubro (último domingo)
+            dia = hora_brasilia.day
+            dias_no_mes = 31  # outubro tem 31 dias
+            # Verificar se ainda não chegamos ao último domingo
+            if dia < (dias_no_mes - 7):
+                horario_verao_europa = True
+            else:
+                dia_semana = hora_brasilia.weekday()
+                # Último domingo é o domingo mais próximo do final do mês
+                ultimo_domingo = dias_no_mes - dia_semana
+                if dia < ultimo_domingo:
+                    horario_verao_europa = True
+        
+        # Aplicar o ajuste de horário correspondente
+        if horario_verao_europa:
+            # Durante o horário de verão na Europa: Brasília UTC-3, Madrid UTC+2 = diferença de 5 horas
+            hora_ajustada = hora_ajustada + timedelta(hours=5)
+            BOT2_LOGGER.info(f"[FUSO-MANUAL] Aplicando diferença de +5 horas para Espanha (horário de verão)")
+        else:
+            # Fora do horário de verão na Europa: Brasília UTC-3, Madrid UTC+1 = diferença de 4 horas
+            hora_ajustada = hora_ajustada + timedelta(hours=4)
+            BOT2_LOGGER.info(f"[FUSO-MANUAL] Aplicando diferença de +4 horas para Espanha (horário normal)")
+    
+    # Registrar os horários para debug
+    BOT2_LOGGER.info(f"[FUSO-MANUAL] Original (BR): {hora_brasilia.strftime('%H:%M')}, Ajustado ({idioma}): {hora_ajustada.strftime('%H:%M')}")
+    
+    return hora_ajustada
