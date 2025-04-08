@@ -6,6 +6,7 @@ Os sinais serão enviados nos seguintes canais:
 - Sala ChamaNaAlta: -1002658649212
 - Sala do Np.bo: -1002538423500
 - Minha sala: -1002317995059
+- Setezin Trade: -1002534775540
 O bot enviará 3 sinais por hora nos minutos 10, 30 e 50.
 """
 
@@ -55,6 +56,10 @@ BOT2_CANAIS_CONFIG = {
     "-1002317995059": {  # Minha sala
         "idioma": "pt",
         "link_corretora": "https://trade.xxbroker.com/register?aff=751626&aff_model=revenue&afftrack="
+    },
+    "-1002534775540": {  # Setezin Trade
+        "idioma": "pt",
+        "link_corretora": "https://trade.xxbroker.com/register?aff=753096&aff_model=revenue&afftrack="
     }
 }
 
