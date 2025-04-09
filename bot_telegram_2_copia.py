@@ -7,6 +7,7 @@ Os sinais serão enviados nos seguintes canais:
 - Sala do Np.bo: -1002538423500
 - Minha sala: -1002317995059
 - Setezin Trade: -1002534775540
+- Sala CineTrader: -1002608899146
 O bot enviará 3 sinais por hora nos minutos 10, 30 e 50.
 """
 
@@ -60,6 +61,10 @@ BOT2_CANAIS_CONFIG = {
     "-1002534775540": {  # Setezin Trade
         "idioma": "pt",
         "link_corretora": "https://trade.xxbroker.com/register?aff=753096&aff_model=revenue&afftrack="
+    },
+    "-1002608899146": {  # Sala CineTrader
+        "idioma": "pt",
+        "link_corretora": "https://trade.xxbroker.com/register?aff=754001&aff_model=revenue&afftrack="
     }
 }
 
